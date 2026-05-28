@@ -36,4 +36,4 @@ sidebar when a new student starts on a shared Chromebook.
 - Move: `robot.turn_for(LEFT|RIGHT, degrees)`, `robot.move_for(mm, 0)`
 - Kick: `robot.kicker.kick(SOFT|MEDIUM|HARD)`
 
-Live URL (once deployed to GitHub Pages): _add after first deploy_.
+Live URL: https://tetc-edu.github.io/Transporting-Cargo_Ai-Vision/
