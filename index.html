@@ -1,0 +1,2895 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Finding & Transporting Cargo · Companion</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+/* ===== TETC tokens ===== */
+:root {
+  --teal:        #00ACA8;
+  --teal-700:    #008884;
+  --teal-800:    #006C68;
+  --teal-dark:   #007096;
+  --teal-050:    #E6F7F6;
+  --magenta:     #B01E78;
+  --magenta-700: #8E1862;
+  --magenta-050: #FBE8F1;
+  --amber:       #F18E21;
+  --amber-700:   #C9711A;
+  --amber-050:   #FDEFD9;
+  --blue:        #3C87E3;
+  --ink:         #1F2A2B;
+  --body:        #333333;
+  --muted:       #5A5A5A;
+  --border:      #E4E4E4;
+  --border-2:    #D5D5D5;
+  --bg:          #FAFAF9;
+  --panel:       #F5F5F5;
+  --white:       #FFFFFF;
+  --shadow:      0 1px 0 rgba(0,0,0,0.04);
+
+  --font-body: Calibri, "Segoe UI", "Helvetica Neue", -apple-system, system-ui, Arial, sans-serif;
+  --font-mono: "Cascadia Mono", "Cascadia Code", "JetBrains Mono", Consolas, "Liberation Mono", Menlo, monospace;
+}
+
+/* ===== base ===== */
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; }
+body {
+  font-family: var(--font-body);
+  color: var(--body);
+  background: var(--bg);
+  font-size: 18px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+h1, h2, h3, h4 { font-family: var(--font-body); color: var(--ink); margin: 0; line-height: 1.15; font-weight: 700; }
+h1 { font-size: 32px; letter-spacing: -0.01em; }
+h2 { font-size: 24px; letter-spacing: -0.005em; }
+h3 { font-size: 19px; }
+h4 { font-size: 16px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); font-weight: 600; }
+p  { margin: 0 0 12px; }
+p:last-child { margin-bottom: 0; }
+a  { color: var(--teal-800); text-decoration: underline; text-underline-offset: 2px; }
+button { font-family: inherit; }
+code, kbd, samp { font-family: var(--font-mono); font-size: 0.93em; }
+
+/* ===== layout ===== */
+.app {
+  display: grid;
+  grid-template-columns: 280px 1fr;
+  min-height: 100vh;
+}
+
+/* ===== sidebar ===== */
+.sidebar {
+  background: var(--white);
+  border-right: 1px solid var(--border);
+  padding: 0;
+  position: sticky; top: 0;
+  height: 100vh;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+}
+.brand {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 16px 20px 14px;
+  border-bottom: 1px solid var(--border);
+}
+.brand-logo {
+  width: 100%;
+  max-width: 220px;
+  height: auto;
+  display: block;
+}
+.brand-sub {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+}
+
+.progress {
+  padding: 18px 20px 14px;
+  border-bottom: 1px solid var(--border);
+}
+.progress h4 { margin-bottom: 10px; }
+.progress-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.progress-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 10px;
+  border: 0;
+  background: transparent;
+  text-align: left;
+  font: inherit;
+  color: var(--body);
+  cursor: pointer;
+  border-radius: 3px;
+  transition: background 120ms ease;
+  width: 100%;
+}
+.progress-row:hover { background: var(--panel); }
+.progress-row.current { background: var(--teal-050); color: var(--teal-800); font-weight: 600; }
+.progress-row[disabled] { color: var(--muted); cursor: not-allowed; opacity: 0.7; }
+.progress-row[disabled]:hover { background: transparent; }
+.dot {
+  width: 18px; height: 18px;
+  border: 2px solid var(--border-2);
+  background: var(--white);
+  flex: none;
+  position: relative;
+}
+.dot.done {
+  background: var(--teal);
+  border-color: var(--teal);
+}
+.dot.done::after {
+  content: "";
+  position: absolute;
+  left: 4px; top: 1px;
+  width: 5px; height: 9px;
+  border: solid white;
+  border-width: 0 2px 2px 0;
+  transform: rotate(45deg);
+}
+.dot.current {
+  border-color: var(--teal);
+  box-shadow: inset 0 0 0 3px var(--white), inset 0 0 0 5px var(--teal);
+}
+.dot.locked { opacity: 0.5; }
+.progress-label { font-size: 14px; }
+.progress-sub  { font-size: 12px; color: var(--muted); margin-top: 1px; text-transform: uppercase; letter-spacing: 0.06em; }
+
+.side-section {
+  border-bottom: 1px solid var(--border);
+}
+.side-toggle {
+  width: 100%;
+  background: transparent;
+  border: 0;
+  padding: 14px 20px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  text-align: left;
+  cursor: pointer;
+  font: inherit;
+  color: var(--ink);
+  font-weight: 600;
+  font-size: 14px;
+  letter-spacing: 0.02em;
+}
+.side-toggle:hover { background: var(--panel); }
+.side-toggle .chev {
+  width: 10px; height: 10px;
+  border-right: 2px solid var(--muted);
+  border-bottom: 2px solid var(--muted);
+  transform: rotate(-45deg);
+  transition: transform 150ms ease;
+}
+.side-section.open .side-toggle .chev { transform: rotate(45deg); }
+.side-body {
+  display: none;
+  padding: 4px 20px 18px;
+  font-size: 15px;
+  color: var(--body);
+}
+.side-section.open .side-body { display: block; }
+
+.side-link {
+  width: 100%;
+  background: transparent;
+  border: 0;
+  padding: 14px 20px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  text-align: left;
+  cursor: pointer;
+  font: inherit;
+  color: var(--ink);
+  font-weight: 600;
+  font-size: 14px;
+  letter-spacing: 0.02em;
+  border-bottom: 1px solid var(--border);
+}
+.side-link:hover { background: var(--panel); }
+.side-link.active { background: var(--panel); color: var(--teal-800); }
+.side-link .arrow { color: var(--muted); font-size: 12px; }
+
+.side-grouplabel {
+  padding: 14px 20px 6px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--muted);
+  border-top: 1px solid var(--border);
+  margin-top: 4px;
+}
+
+/* read-python anatomy */
+.anatomy-box {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  padding: 24px 22px;
+  margin: 14px 0 18px;
+  text-align: center;
+}
+.anatomy-code {
+  font-family: var(--font-mono);
+  font-size: 26px;
+  font-weight: 600;
+  display: inline-block;
+  margin-bottom: 18px;
+  letter-spacing: 0.5px;
+  line-height: 1.3;
+}
+.anatomy-code .who     { color: var(--teal-800); background: rgba(24, 97, 114, 0.12); padding: 2px 6px; border-radius: 2px; }
+.anatomy-code .what    { color: var(--magenta-700); background: rgba(189, 47, 127, 0.12); padding: 2px 6px; border-radius: 2px; }
+.anatomy-code .details { color: #9C5500; background: rgba(241, 142, 33, 0.20); padding: 2px 6px; border-radius: 2px; }
+.anatomy-code .dot     { color: var(--muted); padding: 0 3px; }
+.anatomy-code .paren   { color: var(--muted); padding: 0 2px; }
+.anatomy-english {
+  font-size: 17px;
+  color: var(--ink);
+  font-style: italic;
+  margin-top: 6px;
+  max-width: 640px;
+  margin-left: auto;
+  margin-right: auto;
+}
+.anatomy-legend {
+  list-style: none;
+  padding: 0;
+  margin: 0 auto 16px;
+  max-width: 640px;
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 10px;
+  text-align: left;
+}
+.anatomy-legend li {
+  display: flex;
+  gap: 12px;
+  align-items: baseline;
+  font-size: 15.5px;
+  line-height: 1.5;
+  color: var(--body);
+}
+.anatomy-legend .chip {
+  flex: none;
+  font-family: var(--font-mono);
+  font-weight: 700;
+  padding: 2px 8px;
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  border-radius: 2px;
+  min-width: 64px;
+  text-align: center;
+}
+.anatomy-legend .chip.who     { color: var(--teal-800); background: rgba(24, 97, 114, 0.14); }
+.anatomy-legend .chip.what    { color: var(--magenta-700); background: rgba(189, 47, 127, 0.14); }
+.anatomy-legend .chip.details { color: #9C5500; background: rgba(241, 142, 33, 0.22); }
+.anatomy-legend .chip.neutral { color: var(--muted); background: white; border: 1px solid var(--border); }
+.anatomy-legend code { font-family: var(--font-mono); color: var(--ink); }
+
+.mini-examples {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 12px;
+  margin: 12px 0 6px;
+}
+.mini-example {
+  background: white;
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--teal);
+  padding: 14px 16px;
+}
+.mini-example .mini-code {
+  font-family: var(--font-mono);
+  font-size: 18px;
+  font-weight: 600;
+  margin-bottom: 8px;
+  color: var(--ink);
+}
+.mini-example .mini-code .who     { color: var(--teal-800); }
+.mini-example .mini-code .what    { color: var(--magenta-700); }
+.mini-example .mini-code .details { color: #9C5500; }
+.mini-example .mini-meta {
+  font-size: 14.5px;
+  color: var(--body);
+  line-height: 1.5;
+}
+.mini-example .mini-meta b { color: var(--ink); }
+.mini-example .mini-english {
+  margin-top: 8px;
+  font-size: 14.5px;
+  font-style: italic;
+  color: var(--muted);
+}
+
+.framework-list {
+  counter-reset: framework;
+  padding: 0;
+  margin: 8px 0 0;
+  list-style: none;
+}
+.framework-list li {
+  counter-increment: framework;
+  position: relative;
+  padding: 0 0 14px 38px;
+  font-size: 15.5px;
+  line-height: 1.55;
+  color: var(--body);
+}
+.framework-list li::before {
+  content: counter(framework);
+  position: absolute;
+  left: 0; top: 0;
+  width: 26px; height: 26px;
+  border-radius: 50%;
+  background: var(--teal);
+  color: white;
+  font-weight: 700;
+  font-size: 13px;
+  display: grid; place-items: center;
+}
+.framework-list li b { color: var(--ink); }
+
+.refresher-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  margin-bottom: 14px;
+  background: transparent;
+  border: 1px solid var(--border);
+  font: inherit;
+  font-size: 14px;
+  color: var(--teal);
+  font-weight: 600;
+  cursor: pointer;
+  text-decoration: none;
+}
+.refresher-link:hover { background: var(--panel); border-color: var(--teal); }
+
+@media (max-width: 540px) {
+  .anatomy-code { font-size: 19px; }
+  .anatomy-legend .chip { min-width: 50px; font-size: 10px; }
+}
+
+.cargo-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+  margin-top: 8px;
+}
+.cargo-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  background: var(--panel);
+  border-left: 3px solid var(--teal);
+}
+.cargo-dot {
+  width: 22px; height: 22px;
+  flex: none;
+}
+.cargo-dot.ball   { background: white; border: 1.5px solid #222; border-radius: 50%; }
+.cargo-dot.blue   { background: #3C87E3; }
+.cargo-dot.orange { background: #F18E21; }
+.cargo-name { font-weight: 700; color: var(--ink); font-size: 15px; }
+.cargo-dest { font-size: 13px; color: var(--muted); margin-top: 1px; }
+
+.overview-figure {
+  margin: 0;
+  width: 100%;
+  max-width: 560px;
+}
+.overview-figure svg {
+  width: 100%;
+  height: auto;
+  display: block;
+}
+
+.arc-list {
+  margin: 8px 0 0;
+  padding-left: 22px;
+}
+.arc-list li {
+  margin-bottom: 6px;
+  font-size: 15.5px;
+  line-height: 1.5;
+}
+
+@media (max-width: 540px) {
+  .cargo-grid { grid-template-columns: 1fr; }
+}
+
+.ref-frame {
+  color: var(--body);
+  font-size: 15.5px;
+  line-height: 1.55;
+  max-width: 720px;
+  margin-bottom: 22px;
+}
+.ref-figure {
+  width: 100%;
+  max-width: 720px;
+}
+.ref-figure svg {
+  width: 100%;
+  height: auto;
+  max-width: 720px;
+  display: block;
+}
+.svg-placeholder {
+  width: 100%;
+  max-width: 720px;
+  aspect-ratio: 680 / 720;
+  background: var(--panel);
+  border: 2px dashed var(--border);
+  display: grid;
+  place-items: center;
+  text-align: center;
+  color: var(--muted);
+  font-size: 14px;
+  padding: 24px;
+  box-sizing: border-box;
+}
+.svg-placeholder code {
+  background: white;
+  border: 1px solid var(--border);
+  padding: 2px 6px;
+  font-size: 12px;
+  display: inline-block;
+  margin-top: 8px;
+}
+
+.cheat-group { margin-bottom: 14px; }
+.cheat-group:last-child { margin-bottom: 0; }
+.cheat-group h5 {
+  margin: 0 0 4px;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--teal-800);
+  font-weight: 700;
+}
+.cheat-line {
+  font-family: var(--font-mono);
+  font-size: 14px;
+  color: var(--ink);
+  padding: 3px 0;
+  line-height: 1.35;
+  word-break: break-word;
+}
+.cheat-line .cmt { color: var(--muted); }
+
+.errors-list .err {
+  padding: 10px 0;
+  border-bottom: 1px solid var(--border);
+}
+.errors-list .err:last-child { border-bottom: 0; }
+.errors-list .err-name {
+  font-family: var(--font-mono);
+  font-size: 14px;
+  color: var(--magenta-700);
+  font-weight: 600;
+}
+.errors-list .err-fix {
+  font-size: 14.5px;
+  color: var(--body);
+  margin-top: 4px;
+  line-height: 1.45;
+}
+
+.sidebar-foot {
+  margin-top: auto;
+  padding: 14px 20px 18px;
+  border-top: 1px solid var(--border);
+}
+.linklike {
+  background: none; border: 0; padding: 0;
+  color: var(--muted);
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.linklike:hover { color: var(--magenta-700); }
+
+/* ===== main ===== */
+.main {
+  padding: 0;
+  min-width: 0; /* allow flex/grid children to shrink */
+}
+.topstrip {
+  position: sticky; top: 0;
+  z-index: 5;
+  background: var(--white);
+  border-bottom: 1px solid var(--border);
+  padding: 14px 32px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+.crumbs { font-size: 14px; color: var(--muted); }
+.crumbs strong { color: var(--ink); font-weight: 600; }
+.pathchip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--ink);
+  background: var(--panel);
+  padding: 6px 12px;
+  border: 1px solid var(--border);
+}
+.pathchip .pdot { width: 8px; height: 8px; border-radius: 50%; }
+.pathchip .pdot.beg { background: #2EB47A; }
+.pathchip .pdot.int { background: #E5AB17; }
+.pathchip .pdot.exp { background: #D03030; }
+.pathchip .linklike { margin-left: 6px; }
+
+.topstrip-right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.codeaim-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  color: white;
+  background: var(--teal);
+  padding: 8px 14px;
+  border: 1px solid var(--teal);
+  text-decoration: none;
+  letter-spacing: 0.02em;
+}
+.codeaim-link:hover { background: var(--teal-800, #007096); border-color: var(--teal-800, #007096); }
+.codeaim-link .arrow { font-size: 14px; line-height: 1; }
+
+.screen { padding: 36px 48px 96px; max-width: 1700px; }
+.screen-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 24px;
+  margin-bottom: 24px;
+}
+.screen-header h1 { font-size: 36px; }
+.screen-header .lead { color: var(--muted); font-size: 16px; margin-top: 6px; max-width: 580px; }
+
+/* phase chip */
+.phase {
+  display: inline-block;
+  font-size: 11px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  font-weight: 700;
+  color: white;
+  padding: 6px 14px;
+  border-radius: 999px;
+  white-space: nowrap;
+  flex: none;
+}
+.phase.blocks  { background: var(--teal); }
+.phase.switch  { background: var(--amber); }
+.phase.python  { background: var(--magenta); }
+.phase.vision  { background: var(--teal-dark); }
+.phase.express { background: #444; }
+
+/* cards & sections */
+.section {
+  background: white;
+  border: 1px solid var(--border);
+  border-top: 3px solid var(--teal);
+  padding: 22px 26px;
+  margin-bottom: 22px;
+}
+.section.amber  { border-top-color: var(--amber); }
+.section.magenta{ border-top-color: var(--magenta); }
+.section.dark   { border-top-color: var(--teal-dark); }
+.section h2 { margin-bottom: 8px; }
+.section h3 { margin: 0 0 10px; }
+.section .lead {
+  font-size: 16px;
+  color: var(--body);
+  margin-bottom: 0;
+}
+
+/* objective row */
+.objective {
+  display: flex;
+  gap: 18px;
+  background: var(--teal-050);
+  border-left: 4px solid var(--teal);
+  padding: 16px 20px;
+  margin-bottom: 22px;
+}
+.objective.amber  { background: var(--amber-050);   border-left-color: var(--amber); }
+.objective.magenta{ background: var(--magenta-050); border-left-color: var(--magenta); }
+.objective .label {
+  font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase;
+  font-weight: 700; color: var(--teal-800);
+  flex: none;
+  padding-top: 2px;
+}
+.objective.amber   .label { color: var(--amber-700); }
+.objective.magenta .label { color: var(--magenta-700); }
+.objective p { font-size: 17px; color: var(--ink); font-weight: 500; }
+
+/* pull-quote */
+.pull {
+  border-left: 4px solid var(--magenta);
+  padding: 6px 0 6px 18px;
+  margin: 18px 0;
+  font-size: 19px;
+  color: var(--magenta-700);
+  font-weight: 600;
+  font-style: normal;
+}
+
+/* expandable */
+details.expandable {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  padding: 0;
+  margin-top: 14px;
+}
+details.expandable[open] { background: white; }
+details.expandable > summary {
+  list-style: none;
+  cursor: pointer;
+  padding: 14px 18px;
+  font-weight: 600;
+  font-size: 15px;
+  color: var(--ink);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+details.expandable > summary::-webkit-details-marker { display: none; }
+details.expandable > summary::after {
+  content: "";
+  width: 10px; height: 10px;
+  border-right: 2px solid var(--muted);
+  border-bottom: 2px solid var(--muted);
+  transform: rotate(45deg);
+  transition: transform 150ms ease;
+}
+details.expandable[open] > summary::after { transform: rotate(225deg); }
+details.expandable > .ex-body { padding: 4px 18px 18px; }
+
+.commands-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+.commands-grid .cheat-group { margin: 0; }
+
+/* hint cards */
+.hints { display: grid; gap: 14px; }
+.hint-card {
+  border: 1px solid var(--border);
+  background: white;
+}
+.hint-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 18px;
+  gap: 16px;
+  border-bottom: 1px solid transparent;
+}
+.hint-card.opened .hint-head { border-bottom-color: var(--border); }
+.hint-q {
+  font-weight: 600;
+  font-size: 16px;
+  color: var(--ink);
+}
+.hint-q .qmark {
+  display: inline-block;
+  width: 22px; height: 22px;
+  border-radius: 50%;
+  background: var(--panel);
+  color: var(--muted);
+  text-align: center;
+  line-height: 22px;
+  font-size: 13px;
+  font-weight: 700;
+  margin-right: 10px;
+  vertical-align: -3px;
+}
+.hint-body { display: none; padding: 0 18px 18px; }
+.hint-card.opened .hint-body { display: block; }
+.hint-step {
+  padding: 14px 0;
+  border-bottom: 1px dashed var(--border);
+  display: none;
+}
+.hint-step:last-child { border-bottom: 0; }
+.hint-step.shown { display: block; }
+.hint-step .h-label {
+  display: inline-block;
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  font-weight: 700;
+  color: var(--teal-800);
+  margin-right: 10px;
+  vertical-align: 1px;
+}
+.hint-step.h2 .h-label { color: var(--amber-700); }
+.hint-step.h3 .h-label { color: var(--magenta-700); }
+.hint-step .h-text { display: inline; color: var(--body); font-size: 16.5px; }
+.hint-actions {
+  margin-top: 6px;
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+/* buttons */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--teal);
+  color: white;
+  border: 0;
+  padding: 10px 18px;
+  font: inherit;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  letter-spacing: 0.01em;
+  transition: background 120ms ease, transform 80ms ease;
+}
+.btn:hover { background: var(--teal-700); }
+.btn:active { transform: translateY(1px); }
+.btn.ghost {
+  background: transparent;
+  color: var(--ink);
+  border: 1px solid var(--border-2);
+}
+.btn.ghost:hover { background: var(--panel); border-color: var(--muted); }
+.btn.magenta { background: var(--magenta); }
+.btn.magenta:hover { background: var(--magenta-700); }
+.btn.amber { background: var(--amber); }
+.btn.amber:hover { background: var(--amber-700); }
+.btn.sm { padding: 6px 12px; font-size: 13px; }
+.btn[disabled] { background: var(--border-2); color: var(--muted); cursor: not-allowed; transform: none; }
+
+/* path picker */
+.paths {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 18px;
+  margin-top: 28px;
+}
+.path-card {
+  background: white;
+  border: 1px solid var(--border);
+  border-top: 4px solid var(--teal);
+  padding: 22px 22px 20px;
+  cursor: pointer;
+  text-align: left;
+  font: inherit;
+  color: var(--body);
+  transition: transform 120ms ease, border-color 120ms ease, box-shadow 120ms ease;
+  position: relative;
+}
+.path-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(0,0,0,0.06);
+}
+.path-card.beginner   { border-top-color: #2EB47A; }
+.path-card.intermediate { border-top-color: var(--amber); }
+.path-card.express    { border-top-color: var(--magenta); }
+.path-card .p-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 11px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  font-weight: 700;
+  color: var(--muted);
+  margin-bottom: 12px;
+}
+.path-card .p-tag::before {
+  content: "";
+  width: 10px; height: 10px;
+  border-radius: 50%;
+}
+.path-card.beginner     .p-tag::before { background: #2EB47A; }
+.path-card.intermediate .p-tag::before { background: var(--amber); }
+.path-card.express      .p-tag::before { background: var(--magenta); }
+.path-card h3 { font-size: 22px; line-height: 1.2; margin-bottom: 10px; color: var(--ink); }
+.path-card p  { font-size: 15px; color: var(--body); }
+.path-card .p-cta {
+  display: block;
+  margin-top: 18px;
+  font-size: 13px;
+  color: var(--teal-800);
+  font-weight: 600;
+}
+.path-card:hover .p-cta { color: var(--magenta-700); }
+
+/* hero */
+.hero {
+  background: var(--white);
+  border: 1px solid var(--border);
+  padding: 38px 40px 34px;
+  position: relative;
+  overflow: hidden;
+}
+.hero::before {
+  content: "";
+  position: absolute;
+  right: -80px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 320px;
+  height: 320px;
+  background: radial-gradient(circle at 35% 50%, var(--teal-050) 0%, var(--teal-050) 38%, transparent 70%);
+  pointer-events: none;
+}
+.hero h1 { font-size: 40px; max-width: 620px; position: relative; }
+.hero h1 .accent { color: var(--magenta); }
+.hero .hero-lead {
+  font-size: 18px;
+  color: var(--body);
+  max-width: 640px;
+  margin-top: 14px;
+  position: relative;
+}
+.hero .hero-meta {
+  display: flex; gap: 24px;
+  margin-top: 22px;
+  font-size: 13px;
+  color: var(--muted);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  font-weight: 600;
+  position: relative;
+}
+.hero .hero-meta span { display: inline-flex; gap: 6px; align-items: center; }
+.hero .hero-meta b { color: var(--ink); font-weight: 700; }
+
+/* block→python decoder */
+.decoder {
+  display: grid;
+  grid-template-columns: 220px 1fr;
+  gap: 18px;
+  margin-top: 8px;
+}
+.decoder-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.dec-btn {
+  background: white;
+  border: 1px solid var(--border);
+  padding: 10px 12px;
+  text-align: left;
+  font: inherit;
+  font-size: 14px;
+  color: var(--ink);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  transition: background 100ms ease, border-color 100ms ease;
+}
+.dec-btn:hover { background: var(--panel); }
+.dec-btn.active {
+  background: var(--teal-050);
+  border-color: var(--teal);
+  color: var(--teal-800);
+  font-weight: 600;
+}
+.dec-btn .blk {
+  display: inline-block;
+  width: 12px; height: 12px;
+  flex: none;
+}
+.dec-btn .blk.motion { background: var(--blue); }
+.dec-btn .blk.kick   { background: var(--magenta); }
+.dec-btn .blk.wait   { background: var(--amber); }
+
+.decoder-panel {
+  background: #1B2526;
+  color: #E8EBEB;
+  padding: 18px 20px;
+  font-family: var(--font-mono);
+  font-size: 14px;
+  line-height: 1.55;
+  min-height: 220px;
+  position: relative;
+}
+.decoder-panel .label {
+  color: #6B8C8B;
+  font-size: 10px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  font-family: var(--font-body);
+  font-weight: 700;
+  margin-bottom: 12px;
+}
+.decoder-panel code .cmt { color: #6B8C8B; }
+.decoder-panel code .kw  { color: #F09E55; }
+.decoder-panel code .str { color: #8FCC8F; }
+.decoder-panel code .num { color: #E89AC7; }
+.decoder-panel code .fn  { color: #6FD0CC; }
+.decoder-panel .reads {
+  margin-top: 16px;
+  padding-top: 14px;
+  border-top: 1px solid #2B3839;
+  color: #C7CECE;
+  font-family: var(--font-body);
+  font-size: 13.5px;
+  line-height: 1.5;
+}
+
+/* code blocks */
+.codeblock {
+  background: #1B2526;
+  color: #E8EBEB;
+  padding: 20px 22px;
+  font-family: var(--font-mono);
+  font-size: 14px;
+  line-height: 1.55;
+  position: relative;
+  overflow-x: auto;
+}
+.codeblock pre { margin: 0; white-space: pre; }
+.codeblock .cmt { color: #6B8C8B; }
+.codeblock .kw  { color: #F09E55; }
+.codeblock .str { color: #8FCC8F; }
+.codeblock .num { color: #E89AC7; }
+.codeblock .fn  { color: #6FD0CC; }
+.codeblock .blank { color: var(--amber); font-weight: 700; }
+.code-actions {
+  position: absolute;
+  top: 12px; right: 12px;
+  display: flex; gap: 8px;
+}
+.code-copy {
+  background: rgba(255,255,255,0.08);
+  color: white;
+  border: 1px solid rgba(255,255,255,0.15);
+  padding: 4px 10px;
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+  transition: background 120ms ease;
+}
+.code-copy:hover { background: rgba(255,255,255,0.15); }
+.code-copy.ok { background: var(--teal); border-color: var(--teal); }
+
+/* delivery run */
+.run {
+  display: grid;
+  grid-template-columns: 230px 1fr;
+  gap: 20px;
+  align-items: stretch;
+}
+.timer-card {
+  background: var(--ink);
+  color: white;
+  padding: 22px 22px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  text-align: center;
+}
+.timer-label {
+  font-size: 10px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: rgba(255,255,255,0.6);
+  font-weight: 700;
+}
+.timer-display {
+  font-family: var(--font-mono);
+  font-size: 56px;
+  line-height: 1;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  color: white;
+  font-variant-numeric: tabular-nums;
+}
+.timer-display.warn { color: var(--amber); }
+.timer-display.crit { color: var(--magenta); }
+.timer-display.done { color: #FF6E6E; }
+.timer-actions { display: flex; gap: 8px; justify-content: center; }
+.timer-actions .btn { padding: 7px 14px; font-size: 13px; }
+.timer-actions .btn.ghost { color: white; border-color: rgba(255,255,255,0.25); }
+.timer-actions .btn.ghost:hover { background: rgba(255,255,255,0.08); }
+
+.scoreboard {
+  background: white;
+  border: 1px solid var(--border);
+  padding: 18px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.score-row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  gap: 12px;
+}
+.score-cargo {
+  display: flex; align-items: center; gap: 12px;
+}
+.cargo-icon {
+  width: 28px; height: 28px;
+  border: 2px solid var(--ink);
+  flex: none;
+  position: relative;
+}
+.cargo-icon.ball   { border-radius: 50%; background: white; }
+.cargo-icon.ball::before, .cargo-icon.ball::after {
+  content: ""; position: absolute; background: var(--ink);
+}
+.cargo-icon.ball::before { left: 50%; top: 3px; bottom: 3px; width: 2px; transform: translateX(-50%); }
+.cargo-icon.ball::after  { top: 50%; left: 3px; right: 3px; height: 2px; transform: translateY(-50%); }
+.cargo-icon.blue   { background: var(--blue); border-color: var(--blue); }
+.cargo-icon.orange { background: var(--amber); border-color: var(--amber); }
+.score-name { font-weight: 600; color: var(--ink); }
+.score-zone { font-size: 12px; color: var(--muted); margin-top: 1px; }
+.score-btn {
+  background: white;
+  border: 1px solid var(--border-2);
+  padding: 8px 14px;
+  font: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 130px;
+  justify-content: center;
+  transition: all 120ms ease;
+}
+.score-btn:hover { background: var(--panel); }
+.score-btn .pts { color: var(--muted); font-size: 12px; font-weight: 700; }
+.score-btn.delivered {
+  background: var(--teal);
+  border-color: var(--teal);
+  color: white;
+}
+.score-btn.delivered .pts { color: rgba(255,255,255,0.9); }
+.score-total {
+  margin-top: 6px;
+  padding-top: 14px;
+  border-top: 1px solid var(--border);
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+}
+.score-total .lbl { font-size: 12px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); font-weight: 700; }
+.score-total .val { font-size: 32px; font-weight: 700; color: var(--ink); font-variant-numeric: tabular-nums; }
+
+/* failure log */
+.failure {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  padding: 18px 20px;
+}
+.failure h4 { color: var(--ink); text-transform: none; letter-spacing: 0; font-size: 15px; font-weight: 700; margin-bottom: 4px; }
+.failure .sub { font-size: 15px; color: var(--muted); margin-bottom: 10px; }
+.failure textarea {
+  width: 100%;
+  min-height: 90px;
+  resize: vertical;
+  border: 1px solid var(--border);
+  background: white;
+  padding: 10px 12px;
+  font: inherit;
+  font-size: 15px;
+  line-height: 1.45;
+  font-family: var(--font-body);
+  color: var(--body);
+}
+.failure textarea:focus {
+  outline: none;
+  border-color: var(--teal);
+  box-shadow: 0 0 0 3px rgba(0,172,168,0.22);
+}
+.save-hint {
+  font-size: 12px;
+  color: var(--muted);
+  margin-top: 6px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.save-hint::before {
+  content: "";
+  width: 6px; height: 6px;
+  background: var(--teal);
+  border-radius: 50%;
+  display: inline-block;
+}
+
+/* completion footer */
+.complete-bar {
+  margin-top: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  padding: 20px 26px;
+  background: white;
+  border: 1px solid var(--border);
+  border-top: 3px solid var(--teal);
+}
+.complete-bar.done {
+  border-top-color: var(--teal);
+  background: var(--teal-050);
+}
+.complete-bar h3 { font-size: 17px; margin: 0; color: var(--ink); }
+.complete-bar p  { color: var(--muted); font-size: 15px; margin: 4px 0 0; }
+.complete-bar .check {
+  display: inline-flex; align-items: center; gap: 8px;
+  font-weight: 600; color: var(--teal-800); font-size: 15px;
+}
+.complete-bar .check::before {
+  content: ""; width: 18px; height: 18px;
+  background: var(--teal); border-radius: 50%;
+  position: relative;
+  display: inline-block;
+}
+@keyframes pop {
+  0% { transform: scale(0.6); opacity: 0; }
+  50% { transform: scale(1.08); }
+  100% { transform: scale(1); opacity: 1; }
+}
+.complete-bar.just-completed .check::before { animation: pop 320ms ease-out; }
+
+/* express editor */
+.editor {
+  background: #1B2526;
+  border: 1px solid #0F1717;
+}
+.editor-bar {
+  background: #243031;
+  padding: 8px 14px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  color: rgba(255,255,255,0.7);
+  font-size: 12px;
+  font-family: var(--font-mono);
+}
+.editor-bar .savestate { display: inline-flex; align-items: center; gap: 6px; }
+.editor-bar .savestate::before {
+  content: ""; width: 6px; height: 6px; background: var(--teal); border-radius: 50%;
+}
+.editor textarea {
+  width: 100%;
+  min-height: 360px;
+  background: #1B2526;
+  color: #E8EBEB;
+  border: 0;
+  padding: 16px 20px;
+  font-family: var(--font-mono);
+  font-size: 14px;
+  line-height: 1.6;
+  resize: vertical;
+  display: block;
+  tab-size: 4;
+}
+.editor textarea:focus { outline: none; }
+
+/* constraints list */
+.criteria { display: grid; gap: 8px; margin-top: 8px; }
+.criteria li {
+  list-style: none;
+  padding-left: 28px;
+  position: relative;
+  font-size: 15px;
+  color: var(--body);
+}
+.criteria li::before {
+  content: "";
+  position: absolute;
+  left: 0; top: 6px;
+  width: 14px; height: 14px;
+  border: 2px solid var(--magenta);
+  background: white;
+}
+
+/* tiny callout */
+.callout {
+  display: flex;
+  gap: 14px;
+  padding: 14px 18px;
+  background: var(--amber-050);
+  border-left: 4px solid var(--amber);
+  font-size: 15px;
+  color: var(--ink);
+  margin: 16px 0;
+}
+.callout .ctitle { font-weight: 700; color: var(--amber-700); flex: none; }
+.callout.teal    { background: var(--teal-050); border-left-color: var(--teal); }
+.callout.teal .ctitle { color: var(--teal-800); }
+.callout.magenta { background: var(--magenta-050); border-left-color: var(--magenta); }
+.callout.magenta .ctitle { color: var(--magenta-700); }
+
+/* locked screen */
+.locked-card {
+  background: var(--panel);
+  border: 1px dashed var(--border-2);
+  padding: 40px;
+  text-align: center;
+  color: var(--muted);
+}
+.locked-card h2 { color: var(--muted); margin-bottom: 8px; }
+.locked-card p  { color: var(--muted); max-width: 380px; margin: 0 auto; }
+
+/* modal */
+.modal-bg {
+  position: fixed; inset: 0;
+  background: rgba(0,0,0,0.42);
+  display: none;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+  padding: 24px;
+}
+.modal-bg.open { display: flex; }
+.modal {
+  background: white;
+  max-width: 440px;
+  width: 100%;
+  border-top: 4px solid var(--magenta);
+  padding: 26px 28px;
+}
+.modal h3 { margin-bottom: 8px; }
+.modal p  { color: var(--body); margin-bottom: 18px; }
+.modal .modal-acts { display: flex; gap: 10px; justify-content: flex-end; }
+
+/* toast */
+.toast {
+  position: fixed;
+  bottom: 24px; left: 50%;
+  transform: translateX(-50%) translateY(40px);
+  background: var(--ink);
+  color: white;
+  padding: 12px 20px;
+  font-size: 14px;
+  opacity: 0;
+  transition: opacity 200ms ease, transform 200ms ease;
+  z-index: 200;
+  pointer-events: none;
+}
+.toast.show {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+}
+
+/* hamburger (mobile only) */
+.hamburger {
+  display: none;
+  background: transparent;
+  border: 1px solid var(--border);
+  width: 36px; height: 36px;
+  padding: 0;
+  cursor: pointer;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  gap: 4px;
+  flex: none;
+}
+.hamburger span {
+  display: block;
+  width: 18px; height: 2px;
+  background: var(--ink);
+}
+.menu-backdrop {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.4);
+  z-index: 90;
+}
+
+/* responsive */
+@media (max-width: 980px) {
+  .app { grid-template-columns: 1fr; }
+  .hamburger { display: inline-flex; }
+  .sidebar {
+    position: fixed;
+    top: 0; left: 0;
+    height: 100vh;
+    width: 280px;
+    max-width: 86vw;
+    transform: translateX(-100%);
+    transition: transform 220ms ease;
+    z-index: 100;
+    box-shadow: 2px 0 16px rgba(0,0,0,0.12);
+  }
+  .app.menu-open .sidebar { transform: translateX(0); }
+  .app.menu-open .menu-backdrop { display: block; }
+  .topstrip { padding: 10px 16px; gap: 12px; flex-wrap: wrap; }
+  .topstrip-right { flex-wrap: wrap; gap: 8px; }
+  .screen { padding: 24px 18px 80px; }
+  .paths { grid-template-columns: 1fr; }
+  .run { grid-template-columns: 1fr; }
+  .decoder { grid-template-columns: 1fr; }
+  .commands-grid { grid-template-columns: 1fr; }
+  .hero { padding: 28px 24px; }
+  .hero h1 { font-size: 30px; }
+  .screen-header h1 { font-size: 28px; }
+}
+@media (max-width: 540px) {
+  body { font-size: 16px; }
+  .screen-header { flex-direction: column-reverse; align-items: flex-start; }
+  .codeaim-link { padding: 7px 10px; font-size: 12.5px; }
+  .crumbs { font-size: 12px; }
+  .screen { padding: 20px 14px 80px; }
+  .hero h1 { font-size: 26px; }
+}
+
+
+/* Unit 6 additions */
+.cargo-dot.tag { background: #fff; border: 1.5px solid #222; border-radius: 2px; }
+.dec-btn .blk.vision { background: var(--teal); }
+
+/* print niceties (in case someone hits Cmd+P) */
+@media print {
+  .sidebar, .topstrip, .complete-bar, .modal-bg { display: none !important; }
+  .screen { padding: 0; max-width: 100%; }
+}
+</style>
+</head>
+<body>
+
+<div class="app">
+
+  <div class="menu-backdrop" data-action="close-menu" aria-hidden="true"></div>
+
+  <!-- ===================== SIDEBAR ===================== -->
+  <aside class="sidebar" aria-label="Lesson navigation">
+    <div class="brand">
+      <img class="brand-logo" src="logo-tetc.png" alt="TETC — Teen Engineering + Tech Center" />
+      <div class="brand-sub">Finding &amp; Transporting Cargo</div>
+    </div>
+
+    <nav class="progress" aria-label="Progress">
+      <h4>Your route</h4>
+      <div class="progress-list" id="progressList"></div>
+    </nav>
+
+    <section class="side-section" id="cheatSection">
+      <button class="side-toggle" data-toggle="cheatSection" aria-expanded="false">
+        Command cheat sheet
+        <span class="chev" aria-hidden="true"></span>
+      </button>
+      <div class="side-body">
+        <div class="cheat-group">
+          <h5>AI Vision</h5>
+          <div class="cheat-line">ball = robot.vision.get_data(<span class="kw">SPORTS_BALL</span>)</div>
+          <div class="cheat-line">goal = robot.vision.get_data(<span class="kw">TAG0</span>)</div>
+          <div class="cheat-line">robot.vision.tag_detection(<span class="kw">True</span>)</div>
+        </div>
+        <div class="cheat-group">
+          <h5>What it sees</h5>
+          <div class="cheat-line">ball[0].exists <span class="cmt"># True / False</span></div>
+          <div class="cheat-line">ball[0].bearing <span class="cmt"># + right, - left</span></div>
+          <div class="cheat-line">ball[0].centerX <span class="cmt"># 0&ndash;320, 160 = middle</span></div>
+        </div>
+        <div class="cheat-group">
+          <h5>Drive</h5>
+          <div class="cheat-line">robot.move_for(<span class="cmt">distance_mm, 0</span>)</div>
+          <div class="cheat-line">robot.set_move_velocity(<span class="cmt">percent</span>)</div>
+        </div>
+        <div class="cheat-group">
+          <h5>Turn</h5>
+          <div class="cheat-line">robot.turn_for(<span class="kw">LEFT</span>, <span class="cmt">degrees</span>)</div>
+          <div class="cheat-line">robot.turn_for(<span class="kw">RIGHT</span>, <span class="cmt">degrees</span>)</div>
+        </div>
+        <div class="cheat-group">
+          <h5>Kicker</h5>
+          <div class="cheat-line">robot.kicker.kick(HARD)</div>
+          <div class="cheat-line"><span class="cmt"># also SOFT, MEDIUM</span></div>
+          <div class="cheat-line">robot.kicker.place()</div>
+        </div>
+        <div class="cheat-group">
+          <h5>Screen &amp; wait</h5>
+          <div class="cheat-line">robot.screen.print(<span class="str">"Found it"</span>)</div>
+          <div class="cheat-line">wait(0.5, SECONDS)</div>
+        </div>
+      </div>
+    </section>
+
+    <a class="side-link" id="refLink" href="field.html" target="_blank" rel="noopener">
+      Field reference
+      <span class="arrow" aria-hidden="true">&rsaquo;</span>
+    </a>
+
+    <div class="side-grouplabel">Other lessons</div>
+    <a class="side-link" href="https://tetc-edu.github.io/River-Crossing-Companion/" target="_blank" rel="noopener">
+      River Crossing
+      <span class="arrow" aria-hidden="true">&rsaquo;</span>
+    </a>
+
+    <section class="side-section" id="errorsSection">
+      <button class="side-toggle" data-toggle="errorsSection" aria-expanded="false">
+        Common errors
+        <span class="chev" aria-hidden="true"></span>
+      </button>
+      <div class="side-body">
+        <div class="errors-list" id="errorsList">
+          <!-- populated by JS based on current screen -->
+        </div>
+      </div>
+    </section>
+
+    <div class="sidebar-foot">
+      <button class="linklike" id="resetBtn">Reset my progress</button>
+    </div>
+  </aside>
+
+  <!-- ===================== MAIN ===================== -->
+  <main class="main">
+    <div class="topstrip">
+      <button class="hamburger" aria-label="Open navigation menu" data-action="toggle-menu">
+        <span></span><span></span><span></span>
+      </button>
+      <div class="crumbs" id="crumbs">Finding &amp; Transporting Cargo</div>
+      <div class="topstrip-right">
+        <a class="codeaim-link" href="https://codeaim.vex.com/" target="_blank" rel="noopener">
+          Open CodeAIM <span class="arrow" aria-hidden="true">↗</span>
+        </a>
+        <div id="pathHolder"></div>
+      </div>
+    </div>
+
+    <!-- ====== LANDING / OVERVIEW ====== -->
+    <section class="screen" id="screen-landing" data-screen-label="00 Landing">
+      <div class="hero">
+        <h1>Find the cargo. <span class="accent">Score the goal.</span></h1>
+        <p class="hero-lead">Two sports balls are somewhere out on the field &mdash; and you don't know exactly where. Your robot's AI Vision Sensor is the only thing that can spot them, line up the goal, and kick both through before the clock runs out.</p>
+        <div class="hero-meta">
+          <span><b>2</b> sports balls</span>
+          <span><b>1</b> goal</span>
+          <span><b>1</b> AI Vision Sensor</span>
+        </div>
+      </div>
+
+      <section class="section" style="margin-top: 28px;">
+        <h2 style="margin-bottom: 6px;">What you're doing</h2>
+        <p>Here's the twist: the balls move. You can't measure a distance and hard-code it, because the next round they'll be somewhere else. So instead of telling the robot <em>where</em> to go, you teach it to <b>look</b> &mdash; the <b>AI Vision Sensor</b> spots a ball, tells you which way to turn, and you drive in and kick. You'll solve the same challenge three times &mdash; once in Blocks, once in Switch, and once typing real Python &mdash; and each round you'll move the balls to prove your code really sees.</p>
+
+        <h3 style="margin-top: 18px;">What's on the field</h3>
+        <div class="cargo-grid">
+          <div class="cargo-card">
+            <div class="cargo-dot ball"></div>
+            <div>
+              <div class="cargo-name">Sports ball &times;2</div>
+              <div class="cargo-dest">&rarr; Kick through the goal</div>
+            </div>
+          </div>
+          <div class="cargo-card">
+            <div class="cargo-dot tag"></div>
+            <div>
+              <div class="cargo-name">AprilTag 0</div>
+              <div class="cargo-dest">&rarr; The robot's aim point</div>
+            </div>
+          </div>
+          <div class="cargo-card">
+            <div class="cargo-dot orange"></div>
+            <div>
+              <div class="cargo-name">Orange barrels &times;2</div>
+              <div class="cargo-dest">&rarr; Mark the goal posts</div>
+            </div>
+          </div>
+        </div>
+
+        <h3 style="margin-top: 22px;">Your field</h3>
+        <p style="color: var(--muted); font-size: 14px; margin-bottom: 10px;">The goal stays put. The balls move every round &mdash; this is just one example.</p>
+        <figure class="overview-figure">
+          <svg viewBox="0 0 480 360" xmlns="http://www.w3.org/2000/svg"
+               font-family="Calibri, 'Segoe UI', Helvetica, Arial, sans-serif"
+               role="img" aria-label="A sample field: the goal at the top marked by AprilTag 0 between two orange barrels, the robot starting at center, and two sports balls in varying positions on the far side.">
+            <!-- Field outline -->
+            <rect x="40" y="20" width="300" height="300" fill="white" stroke="#222" stroke-width="2"/>
+
+            <!-- Goal (top): two orange barrels + AprilTag 0 between them -->
+            <rect x="150" y="34" width="14" height="20" fill="#F18E21" stroke="#b96a13" stroke-width="0.5"/>
+            <rect x="216" y="34" width="14" height="20" fill="#F18E21" stroke="#b96a13" stroke-width="0.5"/>
+            <rect x="180" y="34" width="20" height="20" fill="white" stroke="#222" stroke-width="1.5"/>
+            <text x="190" y="49" text-anchor="middle" font-size="10" font-weight="700" fill="#222">0</text>
+            <text x="190" y="74" text-anchor="middle" font-size="11" font-weight="700" fill="#333" letter-spacing="0.5">GOAL</text>
+            <line x1="150" y1="58" x2="230" y2="58" stroke="#888" stroke-width="1" stroke-dasharray="3 3"/>
+
+            <!-- Two sports balls (positions vary) on the far side -->
+            <circle cx="110" cy="245" r="9" fill="#F5C518" stroke="#222" stroke-width="1"/>
+            <circle cx="265" cy="270" r="9" fill="#F5C518" stroke="#222" stroke-width="1"/>
+            <text x="265" y="293" text-anchor="middle" font-size="8.5" fill="#999" font-style="italic">positions vary</text>
+
+            <!-- Robot start position (center) -->
+            <circle cx="190" cy="170" r="11" fill="#333"/>
+            <polygon points="190,182 184,174 196,174" fill="white"/>
+            <text x="190" y="200" text-anchor="middle" font-size="9" font-weight="700" fill="#555" letter-spacing="0.5">START</text>
+
+            <!-- Field size labels -->
+            <text x="40" y="334" font-size="11" fill="#777" font-style="italic">0 cm</text>
+            <text x="340" y="334" font-size="11" fill="#777" font-style="italic" text-anchor="end">100 cm</text>
+
+            <!-- Right column info -->
+            <text x="360" y="40" font-size="13" font-weight="700" fill="#186172" letter-spacing="0.6">FIELD</text>
+            <text x="360" y="58" font-size="11.5" fill="#333">100 × 100 cm</text>
+            <text x="360" y="74" font-size="11.5" fill="#333">1 goal, 2 balls</text>
+            <text x="360" y="90" font-size="11.5" fill="#333">1 robot</text>
+
+            <text x="360" y="120" font-size="13" font-weight="700" fill="#186172" letter-spacing="0.6">SEES</text>
+            <circle cx="368" cy="140" r="6" fill="#F5C518" stroke="#222" stroke-width="1"/>
+            <text x="380" y="144" font-size="11" fill="#333">Sports ball</text>
+            <rect x="362" y="155" width="12" height="12" fill="white" stroke="#222" stroke-width="1.2"/>
+            <text x="380" y="165" font-size="11" fill="#333">AprilTag 0</text>
+            <rect x="362" y="174" width="12" height="14" fill="#F18E21"/>
+            <text x="380" y="185" font-size="11" fill="#333">Orange barrel</text>
+
+            <text x="360" y="216" font-size="13" font-weight="700" fill="#BD2F7F" letter-spacing="0.6">RULE</text>
+            <text x="360" y="234" font-size="11.5" fill="#333">AprilTag 0 faces the</text>
+            <text x="360" y="248" font-size="11.5" fill="#333">field. Balls can sit</text>
+            <text x="360" y="262" font-size="11.5" fill="#333">anywhere on the far</text>
+            <text x="360" y="276" font-size="11.5" fill="#333">half.</text>
+          </svg>
+        </figure>
+
+        <h3 style="margin-top: 22px;">The arc</h3>
+        <p>You'll solve the same challenge three times. Each level adds one new thing:</p>
+        <ul class="arc-list">
+          <li><b>Level 1 &mdash; Blocks.</b> Use the AI Vision blocks to find one ball, line up the goal, and kick it in.</li>
+          <li><b>Level 2 &mdash; Switch.</b> Convert your blocks to see the Python, and read how the vision numbers steer the robot.</li>
+          <li><b>Level 3 &mdash; Python.</b> Type it from scratch &mdash; and make the robot keep searching until it really sees a ball.</li>
+          <li><b>Bonus &mdash; Loops &amp; variables.</b> One loop that scores both balls, no matter where they start.</li>
+        </ul>
+      </section>
+
+      <div class="callout teal" style="margin-top: 28px;">
+        <span class="ctitle">Before you code &mdash;</span>
+        <span>Grab the controller and drive to one ball by hand. Watch the AI Vision dashboard light up when the camera locks onto it. Your eyes need to see what the robot sees before your code does.</span>
+      </div>
+
+      <h2 style="margin: 36px 0 6px;">Where do you start?</h2>
+      <p style="color: var(--muted); margin-bottom: 4px;">Pick the lane that matches you. You can change it at any time.</p>
+
+      <div class="paths">
+        <button class="path-card beginner" data-path="beginner">
+          <div class="p-tag">Never coded</div>
+          <h3>Start at Level 1.</h3>
+          <p>Take your time. We'll drive the robot by hand and watch the camera before we code it.</p>
+          <span class="p-cta">Begin &rarr;</span>
+        </button>
+        <button class="path-card intermediate" data-path="intermediate">
+          <div class="p-tag">I've used blocks</div>
+          <h3>Start at Level 2.</h3>
+          <p>You know Blocks already. Jump straight into Switch and reading the vision Python.</p>
+          <span class="p-cta">Begin &rarr;</span>
+        </button>
+        <button class="path-card express" data-path="advanced">
+          <div class="p-tag">I've coded in text</div>
+          <h3>Start at Level 3.</h3>
+          <p>Same challenge, straight to typing real Python from scratch.</p>
+          <span class="p-cta">Begin &rarr;</span>
+        </button>
+      </div>
+    </section>
+
+    <!-- ====== LEVEL 1 ====== -->
+    <section class="screen" id="screen-level1" data-screen-label="01 Level 1 Blocks" hidden>
+      <div class="screen-header">
+        <div>
+          <h1>Level 1 &mdash; Blocks</h1>
+          <p class="lead">Plan your attack. Turn on AI Vision. Then code one ball into the goal with Blocks.</p>
+        </div>
+        <span class="phase blocks">Blocks</span>
+      </div>
+
+      <div class="objective">
+        <span class="label">Your task</span>
+        <p>Use the AI Vision blocks to find <b>one</b> sports ball, turn to face it, drive to it, then find the goal (AprilTag 0) and kick the ball through. Just one ball for now &mdash; you'll add the second one in the Bonus.</p>
+      </div>
+
+      <div class="callout teal">
+        <span class="ctitle">Drive it first &mdash;</span>
+        <span>Grab the controller and drive to a ball by hand. Watch the AI Vision dashboard: when does it actually see the ball? How close do you have to be? That's the behavior your code has to copy.</span>
+      </div>
+
+      <section class="section">
+        <h3>Step 1: Sketch your plan</h3>
+        <p>Grab an <b>Expo marker</b>. On the field mat, sketch:</p>
+        <ul class="arc-list">
+          <li>The <b>goal</b> at the top: AprilTag 0 between the two orange barrels.</li>
+          <li>A <b>START</b> mark where the robot begins, facing the field.</li>
+          <li>An arrow showing how the robot will <b>spin to search</b>, then drive in once it spots a ball.</li>
+        </ul>
+        <p>You can't draw an X for the ball &mdash; you don't know where it'll be. That's the whole point. Your plan is about <em>how the robot looks</em>, not where things are.</p>
+        <p style="font-size: 14px; color: var(--muted);">The mat is dry-erase &mdash; the marker comes right off when you're done with the level.</p>
+      </section>
+
+      <section class="section">
+        <h3>Step 2: Turn on AI Vision and test it</h3>
+        <p>In VEXcode AIM, open the <b>AI Vision</b> setup. Make sure it's detecting the <b>Sports Ball</b> and <b>AprilTag</b>. Then drive by hand and watch the camera view:</p>
+        <ul class="arc-list">
+          <li>When the ball is in view, the sensor says it <b>exists</b>. When it's not, it doesn't. Your code will check that.</li>
+          <li>The sensor also reports a <b>bearing</b> &mdash; how far left or right the ball is from straight ahead. That tells the robot which way to turn.</li>
+        </ul>
+        <p style="font-size: 14px; color: var(--muted); margin-top: 10px;">Go slow. If you drive too fast, the camera can't keep up and the ball flickers in and out.</p>
+      </section>
+
+      <section class="section">
+        <h3>Step 3: Code it in Blocks</h3>
+        <p>Open VEXcode AIM in Blocks mode. Build a stack that looks something like this:</p>
+        <ul class="arc-list">
+          <li><b>Look for</b> the Sports Ball with the AI Vision block.</li>
+          <li><b>Turn</b> a little at a time until the ball is in view (use the ball's bearing to pick left or right).</li>
+          <li><b>Drive forward</b> to get close to the ball.</li>
+          <li><b>Look for</b> AprilTag 0, turn to line up the goal, then <b>Kick</b>.</li>
+        </ul>
+        <p>Run it. The ball won't be in the same spot twice, so test it a few times with the ball in different places.</p>
+      </section>
+
+      <section class="section amber">
+        <h3>Stuck? Ask a partner. Then ask me.</h3>
+        <p style="color: var(--muted); margin-bottom: 14px; font-size: 14px;">Open one card at a time. Each card has three hints. We give you the next one when you ask.</p>
+        <div class="hints" data-hints="level1">
+
+          <!-- HINT CARD 1 -->
+          <div class="hint-card" data-card>
+            <div class="hint-head">
+              <div class="hint-q"><span class="qmark">?</span>The robot can't find the ball.</div>
+              <button class="btn ghost sm" data-action="open-card">Open</button>
+            </div>
+            <div class="hint-body">
+              <div class="hint-step h1 shown">
+                <span class="h-label">Try first</span>
+                <span class="h-text">Check the AI Vision setup. Is it actually detecting the <b>Sports Ball</b>? Open the camera view and see if the ball gets a box around it.</span>
+              </div>
+              <div class="hint-step h2">
+                <span class="h-label">Then this</span>
+                <span class="h-text">The camera only sees what's in front of it. If the ball is behind or beside the robot, it won't show up. Your code needs to <b>spin and search</b> until the ball comes into view.</span>
+              </div>
+              <div class="hint-step h3">
+                <span class="h-label">Approach</span>
+                <span class="h-text">Slow down. A fast-spinning robot blurs the camera and the ball flickers in and out. Drop the move speed and turn in small steps &mdash; look, turn a little, look again.</span>
+              </div>
+              <div class="hint-actions">
+                <button class="btn ghost sm" data-action="next-hint">Still stuck</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- HINT CARD 2 -->
+          <div class="hint-card" data-card>
+            <div class="hint-head">
+              <div class="hint-q"><span class="qmark">?</span>It sees the ball but turns the wrong way or drives past it.</div>
+              <button class="btn ghost sm" data-action="open-card">Open</button>
+            </div>
+            <div class="hint-body">
+              <div class="hint-step h1 shown">
+                <span class="h-label">Try first</span>
+                <span class="h-text">Use the ball's <b>bearing</b>. A positive bearing means the ball is to the <b>right</b>, so turn right. A negative bearing means it's to the <b>left</b>.</span>
+              </div>
+              <div class="hint-step h2">
+                <span class="h-label">Then this</span>
+                <span class="h-text">Don't drive too far in one go. Drive a short distance, look again, adjust. The ball gets <em>bigger</em> in the camera as you get closer &mdash; that's how you know it's working.</span>
+              </div>
+              <div class="hint-step h3">
+                <span class="h-label">Approach</span>
+                <span class="h-text">Say it out loud with your partner: "the ball is on the robot's right, so it turns right, then drives forward." If you can't say it in order, you can't build the blocks in order.</span>
+              </div>
+              <div class="hint-actions">
+                <button class="btn ghost sm" data-action="next-hint">Still stuck</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- HINT CARD 3 -->
+          <div class="hint-card" data-card>
+            <div class="hint-head">
+              <div class="hint-q"><span class="qmark">?</span>It won't kick, or it kicks at the wrong time.</div>
+              <button class="btn ghost sm" data-action="open-card">Open</button>
+            </div>
+            <div class="hint-body">
+              <div class="hint-step h1 shown">
+                <span class="h-label">Try first</span>
+                <span class="h-text">Is the Kick block actually in your stack? It's easy to drop a Drive block where you meant a Kick. The ball gets <b>kicked</b>; the kicker has a separate <b>place</b> mode for barrels.</span>
+              </div>
+              <div class="hint-step h2">
+                <span class="h-label">Then this</span>
+                <span class="h-text">Order matters. The robot has to be <em>at the ball and lined up with the goal</em> before it kicks. If it kicks mid-drive, the ball goes wherever the robot happens to be pointing.</span>
+              </div>
+              <div class="hint-step h3">
+                <span class="h-label">Approach</span>
+                <span class="h-text">Find the goal before you kick. Look for AprilTag 0, turn until it's straight ahead, <em>then</em> kick. Walk through your stack one block at a time and check the order.</span>
+              </div>
+              <div class="hint-actions">
+                <button class="btn ghost sm" data-action="next-hint">Still stuck</button>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </section>
+
+      <section class="failure">
+        <h4>What happened?</h4>
+        <div class="sub">Did the robot do something you didn't expect? Write it down. That's your data.</div>
+        <textarea data-failure="level1" placeholder="Run 1: spun right past the ball without stopping. Run 2: saw the ball but kicked before it found the goal&mdash;ball went sideways."></textarea>
+        <div class="save-hint">Saves as you type.</div>
+      </section>
+
+      <div class="complete-bar" data-complete="level1">
+        <div>
+          <h3>One ball in the goal?</h3>
+          <p>Mark Level 1 complete when the robot finds a ball on its own and kicks it through the goal.</p>
+        </div>
+        <button class="btn" data-action="complete" data-level="level1">Mark Level 1 complete</button>
+      </div>
+    </section>
+
+    <!-- ====== LEVEL 2 ====== -->
+    <section class="screen" id="screen-level2" data-screen-label="02 Level 2 Switch" hidden>
+      <div class="screen-header">
+        <div>
+          <h1>Level 2 &mdash; Switch</h1>
+          <p class="lead">Move the ball to a new spot. Convert your blocks to Switch. Read how the vision numbers steer the robot.</p>
+        </div>
+        <span class="phase switch">Switch</span>
+      </div>
+
+      <div class="objective amber">
+        <span class="label">Your task</span>
+        <p>Move the ball somewhere new. Convert your blocks to Switch mode to see the Python underneath. Your job here isn't to fix numbers &mdash; it's to <b>read</b> the code and understand how <code>.exists</code> and <code>.bearing</code> make the robot react to wherever the ball actually is.</p>
+      </div>
+
+      <div class="callout magenta">
+        <span class="ctitle">Heads up &mdash;</span>
+        <span>Your ball won't be in the same spot twice. There's no number you can hard-code to win &mdash; the robot has to <em>look</em>. Notice how almost nothing in the code is a fixed position. That's on purpose.</span>
+      </div>
+
+      <details class="expandable" open id="read-python">
+        <summary>First: How to read Python</summary>
+        <div class="ex-body">
+          <p>When you turn your blocks into Switch, you'll see lines of Python like this for the first time. Don't panic. Every line in this lesson follows the same shape:</p>
+
+          <div class="anatomy-box">
+            <div class="anatomy-code">
+              <span class="who">robot</span><span class="dot">.</span><span class="what">move_for</span><span class="paren">(</span><span class="details">450, 0</span><span class="paren">)</span>
+            </div>
+            <ul class="anatomy-legend">
+              <li><span class="chip who">Who</span><span><code>robot</code> &mdash; who are you talking to? The robot.</span></li>
+              <li><span class="chip neutral">.</span><span>The <b>dot</b> means "go inside" or "use your..." &mdash; think of it as opening a toolbox.</span></li>
+              <li><span class="chip what">What</span><span><code>move_for</code> &mdash; what do you want it to do? Move.</span></li>
+              <li><span class="chip neutral">(</span><span>Open parenthesis &mdash; here come the details.</span></li>
+              <li><span class="chip details">Details</span><span><code>450, 0</code> &mdash; the specifics. 450 millimeters, 0 degrees. Commas separate them. <b>Order matters.</b></span></li>
+              <li><span class="chip neutral">)</span><span>Close parenthesis &mdash; done.</span></li>
+            </ul>
+            <p class="anatomy-english">In English: "Hey robot, use your <b>move</b> &mdash; 450 mm, 0 degrees."</p>
+          </div>
+
+          <h4 style="margin-top: 20px; margin-bottom: 8px; font-size: 14px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em;">Try it on three more</h4>
+          <div class="mini-examples">
+
+            <div class="mini-example">
+              <div class="mini-code"><span class="who">robot</span>.<span class="what">turn_for</span>(<span class="details">LEFT, 90</span>)</div>
+              <div class="mini-meta"><b>Who:</b> robot &nbsp;&middot;&nbsp; <b>What:</b> turn_for &nbsp;&middot;&nbsp; <b>Details:</b> LEFT, 90 degrees</div>
+              <div class="mini-english">"Hey robot, use your <b>turn</b> &mdash; left, 90 degrees."</div>
+            </div>
+
+            <div class="mini-example">
+              <div class="mini-code"><span class="who">robot.kicker</span>.<span class="what">kick</span>(<span class="details">HARD</span>)</div>
+              <div class="mini-meta"><b>Who:</b> robot.kicker (the kicker inside the robot &mdash; <b>two dots = two toolboxes deep</b>) &nbsp;&middot;&nbsp; <b>What:</b> kick &nbsp;&middot;&nbsp; <b>Details:</b> HARD power</div>
+              <div class="mini-english">"Hey robot, open your <b>kicker</b> toolbox, use the <b>kick</b> &mdash; hard power."</div>
+            </div>
+
+            <div class="mini-example">
+              <div class="mini-code"><span class="what">wait</span>(<span class="details">0.5, SECONDS</span>)</div>
+              <div class="mini-meta"><b>Who:</b> nobody &mdash; this one isn't aimed at the robot &nbsp;&middot;&nbsp; <b>What:</b> wait &nbsp;&middot;&nbsp; <b>Details:</b> 0.5, SECONDS</div>
+              <div class="mini-english">"Pause for half a second."</div>
+            </div>
+
+          </div>
+
+          <div class="callout teal" style="margin-top: 14px;">
+            <span class="ctitle">Two dots?</span>
+            <span>That just means you're going deeper. <code>robot</code> &rarr; open the robot &rarr; <code>kicker</code> &rarr; open the kicker toolbox &rarr; <code>kick</code> &rarr; use the kick tool. It's nested boxes.</span>
+          </div>
+
+          <h4 style="margin-top: 22px; margin-bottom: 10px; font-size: 14px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em;">Read any line</h4>
+          <ol class="framework-list">
+            <li><b>Find the dots.</b> Everything before the last dot is the <b>Who</b>. The word after the last dot (before the parenthesis) is the <b>What</b>.</li>
+            <li><b>Look inside the parentheses.</b> Those are the <b>Details</b>. Commas separate them. Order matters &mdash; the first detail is always the first thing the command needs to know.</li>
+            <li><b>Say it out loud.</b> "Hey [Who], do [What] with [Details]." If it sounds right in English, you probably read it right.</li>
+          </ol>
+        </div>
+      </details>
+
+      <section class="section amber">
+        <h3>Step 1: Move the ball and test again</h3>
+        <p>Wipe your Level 1 plan off the mat. With the <b>Expo marker</b>, keep the goal where it is, but:</p>
+        <ul class="arc-list">
+          <li>Put the ball in a totally <b>new spot</b> &mdash; far left, far right, behind the robot. Be mean about it.</li>
+          <li>Run your Level 1 code again, unchanged. Does the robot still find and score it?</li>
+        </ul>
+        <p>If it does, that's the power of vision: you didn't touch a single number and it still worked. If it doesn't, note where it failed &mdash; you'll understand why once you read the code.</p>
+      </section>
+
+      <section class="section">
+        <h3>Step 2: Convert blocks to Switch</h3>
+        <p>In VEXcode AIM, <b>right-click</b> the first block of your stack (two-finger tap on a Chromebook). Pick <b>Convert stack to Switch block</b>. Your blocks turn into Python inside a Switch container.</p>
+        <p>You're not writing Python yet. You're reading it. Find the AI Vision lines and figure out what each one is asking the camera.</p>
+      </section>
+
+      <section class="section">
+        <h3>Step 3: Use the decoder</h3>
+        <p style="font-size: 15px; color: var(--muted); margin-bottom: 14px;">Click any block on the left to see the Python it becomes. This is what your Switch code looks like under the hood.</p>
+        <div class="decoder">
+          <div class="decoder-list" id="decoderList">
+            <button class="dec-btn active" data-decode="lookball">
+              <span class="blk vision"></span> Look for a ball
+            </button>
+            <button class="dec-btn" data-decode="exists">
+              <span class="blk vision"></span> Is it there?
+            </button>
+            <button class="dec-btn" data-decode="bearing">
+              <span class="blk vision"></span> Which way is it?
+            </button>
+            <button class="dec-btn" data-decode="turnto">
+              <span class="blk motion"></span> Turn toward it
+            </button>
+            <button class="dec-btn" data-decode="driveto">
+              <span class="blk motion"></span> Drive to it
+            </button>
+            <button class="dec-btn" data-decode="kick">
+              <span class="blk kick"></span> Kick it in
+            </button>
+          </div>
+          <div class="decoder-panel" id="decoderPanel">
+            <div class="label">Python</div>
+            <pre id="decoderCode"></pre>
+            <div class="reads" id="decoderReads"></div>
+          </div>
+        </div>
+      </section>
+
+      <section class="section amber">
+        <h3>Stuck?</h3>
+        <div class="hints" data-hints="level2">
+
+          <div class="hint-card" data-card>
+            <div class="hint-head">
+              <div class="hint-q"><span class="qmark">?</span>I can't find the Switch option.</div>
+              <button class="btn ghost sm" data-action="open-card">Open</button>
+            </div>
+            <div class="hint-body">
+              <div class="hint-step h1 shown">
+                <span class="h-label">Try first</span>
+                <span class="h-text"><b>Right-click</b> &mdash; not left-click &mdash; on the first block of your stack. On a Chromebook, that's a two-finger tap on the trackpad.</span>
+              </div>
+              <div class="hint-step h2">
+                <span class="h-label">Then this</span>
+                <span class="h-text">You have to right-click the <em>top</em> block of the stack, not one in the middle. The menu only shows up on the start.</span>
+              </div>
+              <div class="hint-step h3">
+                <span class="h-label">Approach</span>
+                <span class="h-text">If the menu opens but "Convert stack to Switch block" is grayed out, your stack has a block that Switch can't translate. Take any odd custom blocks out and try again.</span>
+              </div>
+              <div class="hint-actions"><button class="btn ghost sm" data-action="next-hint">Still stuck</button></div>
+            </div>
+          </div>
+
+          <div class="hint-card" data-card>
+            <div class="hint-head">
+              <div class="hint-q"><span class="qmark">?</span>The Python keeps mentioning the camera and I'm lost.</div>
+              <button class="btn ghost sm" data-action="open-card">Open</button>
+            </div>
+            <div class="hint-body">
+              <div class="hint-step h1 shown">
+                <span class="h-label">Try first</span>
+                <span class="h-text">Find the line with <code>get_data</code>. That's the robot taking a look. Whatever name is in front of the <code>=</code> (like <code>ball</code>) is where it stores what it saw.</span>
+              </div>
+              <div class="hint-step h2">
+                <span class="h-label">Then this</span>
+                <span class="h-text"><code>ball[0].exists</code> is a yes/no: is a ball in view right now? <code>ball[0].bearing</code> is an angle: how far left or right it is. Those two are what the robot reacts to.</span>
+              </div>
+              <div class="hint-step h3">
+                <span class="h-label">Approach</span>
+                <span class="h-text">Read it as a story: "take a look. If a ball exists, turn by its bearing, drive in, kick." The camera lines replace the fixed numbers you'd have measured &mdash; that's why the ball can move and the code still works.</span>
+              </div>
+              <div class="hint-actions"><button class="btn ghost sm" data-action="next-hint">Still stuck</button></div>
+            </div>
+          </div>
+
+          <div class="hint-card" data-card>
+            <div class="hint-head">
+              <div class="hint-q"><span class="qmark">?</span>The Python looks scary.</div>
+              <button class="btn ghost sm" data-action="open-card">Open</button>
+            </div>
+            <div class="hint-body">
+              <div class="hint-step h1 shown">
+                <span class="h-label">Try first</span>
+                <span class="h-text">Don't read it like a book. Go line by line. Each line is one small instruction &mdash; an action and some details in parentheses.</span>
+              </div>
+              <div class="hint-step h2">
+                <span class="h-label">Then this</span>
+                <span class="h-text">Use the decoder above. Click a block, see its Python, match it to a line in your Switch code. <code>robot.turn_for(RIGHT, 30)</code> means "robot, turn 30 degrees to the right."</span>
+              </div>
+              <div class="hint-step h3">
+                <span class="h-label">Approach</span>
+                <span class="h-text">It's the exact same plan as your blocks &mdash; look, turn, drive, kick &mdash; just written in words instead of dragged shapes. You already understand the plan. You're only learning to read it.</span>
+              </div>
+              <div class="hint-actions"><button class="btn ghost sm" data-action="next-hint">Still stuck</button></div>
+            </div>
+          </div>
+
+        </div>
+      </section>
+
+      <section class="failure">
+        <h4>What happened?</h4>
+        <div class="sub">In your own words: which line is the one that lets the ball move around? Why does it matter?</div>
+        <textarea data-failure="level2" placeholder="The get_data line is the robot taking a look. The bearing tells it which way to turn. Because it checks every time, the ball can be anywhere and the turn still comes out right."></textarea>
+        <div class="save-hint">Saves as you type.</div>
+      </section>
+
+      <div class="complete-bar" data-complete="level2">
+        <div>
+          <h3>Can you read your own vision code?</h3>
+          <p>Mark Level 2 complete when you can point to the <code>get_data</code>, <code>exists</code>, and <code>bearing</code> lines and say what each one does.</p>
+        </div>
+        <button class="btn amber" data-action="complete" data-level="level2">Mark Level 2 complete</button>
+      </div>
+    </section>
+
+    <!-- ====== LEVEL 3 ====== -->
+    <section class="screen" id="screen-level3" data-screen-label="03 Level 3 Python" hidden>
+      <div class="screen-header">
+        <div>
+          <h1>Level 3 &mdash; Python</h1>
+          <p class="lead">Move the ball one more time. Now type the code yourself &mdash; and make the robot search until it sees it.</p>
+        </div>
+        <span class="phase python">Python</span>
+      </div>
+
+      <div class="objective magenta">
+        <span class="label">Your task</span>
+        <p>Move the ball to a fresh spot. Now you're writing real Python from scratch. Type the find-and-score sequence yourself, and this time make the robot <b>keep looking until it actually sees a ball</b> &mdash; not just check once and give up. Score one ball reliably, wherever it starts.</p>
+      </div>
+
+      <button class="refresher-link" data-action="goto" data-target="level2" data-anchor="read-python">
+        &larr; Refresher: How to read Python
+      </button>
+
+      <section class="section">
+        <h3>Step 1: Move the ball somewhere new</h3>
+        <p>Wipe your old plan off the mat. With the <b>Expo marker</b>, keep the goal at the top, then:</p>
+        <ul class="arc-list">
+          <li>Put the ball in a spot the robot <b>can't see from its start</b> &mdash; off to the side, or behind it.</li>
+          <li>That forces the real test: your code has to <b>search</b>, not just glance straight ahead.</li>
+        </ul>
+        <p>Sketch the path: spin to search &rarr; spot the ball &rarr; drive in &rarr; find the goal &rarr; kick.</p>
+      </section>
+
+      <section class="section magenta">
+        <h3>Step 2: Start a Python project</h3>
+        <p>Open VEXcode AIM. New project &rarr; pick <b>Python</b> (not Blocks). Save it before you write anything.</p>
+        <p>You've already read these commands in Level 2. Now you type them yourself.</p>
+      </section>
+
+      <section class="section">
+        <h3>Step 3: Type the find-and-score code</h3>
+        <p>The shape is: turn on tag detection, spin until you see a ball, turn toward it, drive in, then kick. Here's a starting point &mdash; type it, then tune the numbers for your robot:</p>
+        <div class="codeblock">
+<pre><span class="cmt"># See the goal's AprilTag too</span>
+robot.vision.<span class="fn">tag_detection</span>(<span class="kw">True</span>)
+
+<span class="cmt"># 1. Spin slowly until a ball is in view</span>
+ball = robot.vision.<span class="fn">get_data</span>(<span class="kw">SPORTS_BALL</span>)
+<span class="kw">while</span> <span class="kw">not</span> ball[<span class="num">0</span>].exists:
+    robot.<span class="fn">turn_for</span>(<span class="kw">RIGHT</span>, <span class="num">15</span>)
+    ball = robot.vision.<span class="fn">get_data</span>(<span class="kw">SPORTS_BALL</span>)
+
+<span class="cmt"># 2. Turn toward the ball, then drive in</span>
+<span class="kw">if</span> ball[<span class="num">0</span>].bearing &gt; <span class="num">0</span>:
+    robot.<span class="fn">turn_for</span>(<span class="kw">RIGHT</span>, ball[<span class="num">0</span>].bearing)
+<span class="kw">else</span>:
+    robot.<span class="fn">turn_for</span>(<span class="kw">LEFT</span>, -ball[<span class="num">0</span>].bearing)
+robot.<span class="fn">move_for</span>(<span class="num">300</span>, <span class="num">0</span>)
+
+<span class="cmt"># 3. Kick it through the goal</span>
+robot.<span class="fn">kicker</span>.kick(<span class="kw">HARD</span>)</pre>
+        </div>
+        <p style="font-size: 14px; color: var(--muted); margin-top: 10px;">Want it cleaner? Before the kick, look for the goal with <code>robot.vision.get_data(TAG0)</code> and turn toward <em>its</em> bearing the same way you did for the ball &mdash; so you're aimed at the goal, not just facing the ball.</p>
+      </section>
+
+      <section class="section magenta">
+        <h3>Commands you'll need</h3>
+        <p style="font-size: 14px; color: var(--muted); margin-bottom: 10px;">Always open in the sidebar too. Here's the short list:</p>
+        <div class="commands-grid">
+          <div class="cheat-group">
+            <h5>Look</h5>
+            <div class="cheat-line">robot.vision.get_data(<span class="kw">SPORTS_BALL</span>)</div>
+            <div class="cheat-line">robot.vision.get_data(<span class="kw">TAG0</span>)</div>
+            <div class="cheat-line">robot.vision.tag_detection(<span class="kw">True</span>)</div>
+          </div>
+          <div class="cheat-group">
+            <h5>What it sees</h5>
+            <div class="cheat-line">ball[<span class="num">0</span>].exists</div>
+            <div class="cheat-line">ball[<span class="num">0</span>].bearing</div>
+          </div>
+          <div class="cheat-group">
+            <h5>Move</h5>
+            <div class="cheat-line">robot.turn_for(<span class="kw">RIGHT</span>, <span class="cmt">deg</span>)</div>
+            <div class="cheat-line">robot.move_for(<span class="cmt">mm</span>, <span class="num">0</span>)</div>
+          </div>
+          <div class="cheat-group">
+            <h5>Kick &amp; check</h5>
+            <div class="cheat-line">robot.kicker.kick(<span class="kw">HARD</span>)</div>
+            <div class="cheat-line">robot.screen.print(<span class="str">"Found it"</span>)</div>
+          </div>
+        </div>
+      </section>
+
+      <section class="section magenta">
+        <h3>Stuck?</h3>
+        <div class="hints" data-hints="level3">
+
+          <div class="hint-card" data-card>
+            <div class="hint-head">
+              <div class="hint-q"><span class="qmark">?</span>I don't know how to start a Python project.</div>
+              <button class="btn ghost sm" data-action="open-card">Open</button>
+            </div>
+            <div class="hint-body">
+              <div class="hint-step h1 shown">
+                <span class="h-label">Try first</span>
+                <span class="h-text">Open VEXcode AIM. <b>New project</b>. Pick <b>Python</b> &mdash; not Blocks. Give it a name and save.</span>
+              </div>
+              <div class="hint-step h2">
+                <span class="h-label">Then this</span>
+                <span class="h-text">Type one short line and run it. <code>robot.screen.print("hi")</code> is enough. If the robot prints "hi", you're ready. If not, fix that first.</span>
+              </div>
+              <div class="hint-step h3">
+                <span class="h-label">Approach</span>
+                <span class="h-text">Get the search part working first: spin until <code>ball[0].exists</code> is true, and print "Found it". When that's solid, add the turn, the drive, and the kick one at a time.</span>
+              </div>
+              <div class="hint-actions"><button class="btn ghost sm" data-action="next-hint">Still stuck</button></div>
+            </div>
+          </div>
+
+          <div class="hint-card" data-card>
+            <div class="hint-head">
+              <div class="hint-q"><span class="qmark">?</span>Python gives me a red error message.</div>
+              <button class="btn ghost sm" data-action="open-card">Open</button>
+            </div>
+            <div class="hint-body">
+              <div class="hint-step h1 shown">
+                <span class="h-label">Try first</span>
+                <span class="h-text">Read the error. It usually tells you the line number. Go to that line first.</span>
+              </div>
+              <div class="hint-step h2">
+                <span class="h-label">Then this</span>
+                <span class="h-text">The usual suspects: missing comma, missing colon after a <code>while</code> or <code>if</code>, or a typo. Capital letters matter &mdash; <code>SPORTS_BALL</code> and <code>RIGHT</code> have to be exactly right.</span>
+              </div>
+              <div class="hint-step h3">
+                <span class="h-label">Approach</span>
+                <span class="h-text">Check your spacing. Everything inside the <code>while</code> loop must be indented the same (4 spaces). A line that should be inside the loop but isn't indented will break it.</span>
+              </div>
+              <div class="hint-actions"><button class="btn ghost sm" data-action="next-hint">Still stuck</button></div>
+            </div>
+          </div>
+
+          <div class="hint-card" data-card>
+            <div class="hint-head">
+              <div class="hint-q"><span class="qmark">?</span>The robot spins forever and never stops.</div>
+              <button class="btn ghost sm" data-action="open-card">Open</button>
+            </div>
+            <div class="hint-body">
+              <div class="hint-step h1 shown">
+                <span class="h-label">Try first</span>
+                <span class="h-text">It's stuck in the search loop because it never sees a ball. Open the camera view: is AI Vision actually detecting the <b>Sports Ball</b>? Is a ball even on the field?</span>
+              </div>
+              <div class="hint-step h2">
+                <span class="h-label">Then this</span>
+                <span class="h-text">You must take a <em>fresh</em> look inside the loop. If <code>get_data</code> only runs once, before the loop, <code>exists</code> never changes and the loop runs forever. Re-read the ball at the bottom of the loop.</span>
+              </div>
+              <div class="hint-step h3">
+                <span class="h-label">Approach</span>
+                <span class="h-text">Slow the turn down and turn in small steps (15 degrees, then look). Spinning too fast blurs the camera so it never gets a clean look at the ball.</span>
+              </div>
+              <div class="hint-actions"><button class="btn ghost sm" data-action="next-hint">Still stuck</button></div>
+            </div>
+          </div>
+
+        </div>
+      </section>
+
+      <section class="failure">
+        <h4>What happened?</h4>
+        <div class="sub">Did it find the ball every time? What made the search fail when it failed?</div>
+        <textarea data-failure="level3" placeholder="Found it when the ball was in front, but spun forever when the ball was behind a barrel. Turning slower in smaller steps fixed it."></textarea>
+        <div class="save-hint">Saves as you type.</div>
+      </section>
+
+      <div class="complete-bar" data-complete="level3">
+        <div>
+          <h3>One ball scored from typed Python?</h3>
+          <p>Mark Level 3 complete when the robot searches, finds a ball wherever it starts, and scores it &mdash; from code you typed.</p>
+        </div>
+        <button class="btn magenta" data-action="complete" data-level="level3">Mark Level 3 complete</button>
+      </div>
+    </section>
+
+    <!-- ====== BONUS ====== -->
+    <section class="screen" id="screen-bonus" data-screen-label="04 Bonus Loops" hidden>
+      <div class="screen-header">
+        <div>
+          <h1>Bonus &mdash; Loops &amp; Variables</h1>
+          <p class="lead">You scored one ball. Now score <em>both</em> &mdash; with one loop instead of copy-paste.</p>
+        </div>
+        <span class="phase python">Python</span>
+      </div>
+
+      <div id="bonusLocked" class="locked-card" hidden>
+        <h2>Locked</h2>
+        <p>Finish Level 3 first. The Bonus opens when you mark it complete.</p>
+      </div>
+
+      <div id="bonusContent">
+        <div class="objective magenta">
+          <span class="label">Your task</span>
+          <p>The real challenge wants <b>both</b> sports balls in the goal. You could copy your Level 3 code and paste it twice &mdash; or you could wrap it in a <b>loop</b> and run it as many times as you like. Same find-and-score code, scoring two balls instead of one.</p>
+        </div>
+
+        <button class="refresher-link" data-action="goto" data-target="level2" data-anchor="read-python">
+          &larr; Refresher: How to read Python
+        </button>
+
+        <section class="section">
+          <h3>1. Spot the pattern</h3>
+          <p>Look at the code you wrote in Level 3. To score a second ball, you'd do the exact same thing again: search, turn, drive, kick. What's the <em>same</em> every time? What's <em>different</em>?</p>
+          <p>Talk it through with your partner before reading on.</p>
+
+          <div class="callout teal">
+            <span class="ctitle">The answer &mdash;</span>
+            <span>The <b>shape</b> is identical every time: search, turn toward the ball, drive, kick. Almost nothing is different &mdash; the vision figures out the actual angles for you. That's exactly what a loop is for.</span>
+          </div>
+        </section>
+
+        <section class="section">
+          <h3>2. What's a variable?</h3>
+          <p>A <b>variable</b> is a name for a value. Instead of writing <code>HARD</code> or <code>15</code> in several places, you name it once and use the name. Change it in one spot and every use updates.</p>
+          <div class="codeblock">
+<pre><span class="cmt"># Before (value typed inline)</span>
+robot.<span class="fn">kicker</span>.kick(<span class="kw">HARD</span>)
+
+<span class="cmt"># After (with a variable)</span>
+power = <span class="kw">HARD</span>
+robot.<span class="fn">kicker</span>.kick(power)</pre>
+          </div>
+          <p style="font-size: 14px; color: var(--muted); margin-top: 10px;">Small thing now &mdash; but if you kick in three places and want to try SOFT, you change one line instead of three.</p>
+        </section>
+
+        <section class="section">
+          <h3>3. What's a loop?</h3>
+          <p>A <b>loop</b> means: do this thing more than once. Instead of writing the find-and-score code twice (once per ball), write it once and tell the robot "do this 2 times."</p>
+          <p><code>range(2)</code> is just "count out 2 turns." The robot runs the loop body once for each one.</p>
+
+          <div class="codeblock">
+<pre><span class="cmt"># Do something 2 times</span>
+<span class="kw">for</span> i <span class="kw">in</span> <span class="fn">range</span>(<span class="num">2</span>):
+    robot.<span class="fn">screen</span>.print(<span class="str">"Ball"</span>)</pre>
+          </div>
+          <p style="font-size: 14px; color: var(--muted); margin-top: 10px;">This prints twice. Change <code>2</code> to <code>5</code> and it prints five times. The loop does the repeating for you.</p>
+        </section>
+
+        <section class="section magenta">
+          <h3>4. Build it</h3>
+          <p>Now put it together. Take your Level 3 find-and-score code and wrap it in a <code>for</code> loop that runs twice.</p>
+          <p>Step by step:</p>
+          <ol class="arc-list">
+            <li>Start <code>for i in range(2):</code></li>
+            <li>Indent your whole find-and-score block underneath it.</li>
+            <li>After the kick, back up or turn away so the next search finds the <em>other</em> ball.</li>
+          </ol>
+
+          <p style="margin-top: 14px;">Here's the shape &mdash; fill in your own numbers:</p>
+          <div class="codeblock">
+<pre>robot.vision.<span class="fn">tag_detection</span>(<span class="kw">True</span>)
+power = <span class="kw">HARD</span>
+
+<span class="cmt"># Score two balls</span>
+<span class="kw">for</span> i <span class="kw">in</span> <span class="fn">range</span>(<span class="num">2</span>):
+    <span class="cmt"># search until a ball is in view</span>
+    ball = robot.vision.<span class="fn">get_data</span>(<span class="kw">SPORTS_BALL</span>)
+    <span class="kw">while</span> <span class="kw">not</span> ball[<span class="num">0</span>].exists:
+        robot.<span class="fn">turn_for</span>(<span class="kw">RIGHT</span>, <span class="num">15</span>)
+        ball = robot.vision.<span class="fn">get_data</span>(<span class="kw">SPORTS_BALL</span>)
+
+    <span class="cmt"># turn toward it and drive in</span>
+    <span class="kw">if</span> ball[<span class="num">0</span>].bearing &gt; <span class="num">0</span>:
+        robot.<span class="fn">turn_for</span>(<span class="kw">RIGHT</span>, ball[<span class="num">0</span>].bearing)
+    <span class="kw">else</span>:
+        robot.<span class="fn">turn_for</span>(<span class="kw">LEFT</span>, -ball[<span class="num">0</span>].bearing)
+    robot.<span class="fn">move_for</span>(<span class="num">300</span>, <span class="num">0</span>)
+
+    <span class="cmt"># kick it through the goal</span>
+    robot.<span class="fn">kicker</span>.kick(power)</pre>
+          </div>
+          <p style="font-size: 14px; color: var(--muted); margin-top: 10px;">Tune the search step and drive distance for your robot. Don't change the loop structure &mdash; just the numbers inside.</p>
+        </section>
+
+        <section class="section">
+          <h3>5. The payoff</h3>
+          <p>You wrote the find-and-score code <em>once</em>. The loop ran it twice. Want to score five balls? Change <code>range(2)</code> to <code>range(5)</code>. That's the only edit.</p>
+
+          <div class="callout magenta">
+            <span class="ctitle">That's the whole point &mdash;</span>
+            <span>Variables and loops aren't fancy computer-science magic. They're what you do when you notice you're about to copy-paste the same code. You had the problem first &mdash; two balls, one block of code. Now you have the fix.</span>
+          </div>
+        </section>
+
+        <section class="section">
+          <h3>Stuck?</h3>
+          <div class="hints" data-hints="bonus">
+
+            <div class="hint-card" data-card>
+              <div class="hint-head">
+                <div class="hint-q"><span class="qmark">?</span>My loop only runs once, or not at all.</div>
+                <button class="btn ghost sm" data-action="open-card">Open</button>
+              </div>
+              <div class="hint-body">
+                <div class="hint-step h1 shown">
+                  <span class="h-label">Try first</span>
+                  <span class="h-text">Check the number in <code>range()</code>. <code>range(2)</code> runs twice. <code>range(1)</code> runs once. For both balls you want <code>range(2)</code>.</span>
+                </div>
+                <div class="hint-step h2">
+                  <span class="h-label">Then this</span>
+                  <span class="h-text">Check indentation. Every line inside the <code>for</code> must be indented the same (use 4 spaces). Lines that aren't indented run after the loop, not inside it.</span>
+                </div>
+                <div class="hint-step h3">
+                  <span class="h-label">Approach</span>
+                  <span class="h-text">Put <code>robot.screen.print("loop")</code> as the first line inside the loop. Now you can <em>see</em> how many times it runs on the robot screen. If you see it twice, the loop is fine and the bug is somewhere else.</span>
+                </div>
+                <div class="hint-actions"><button class="btn ghost sm" data-action="next-hint">Still stuck</button></div>
+              </div>
+            </div>
+
+            <div class="hint-card" data-card>
+              <div class="hint-head">
+                <div class="hint-q"><span class="qmark">?</span>It scores the same ball twice.</div>
+                <button class="btn ghost sm" data-action="open-card">Open</button>
+              </div>
+              <div class="hint-body">
+                <div class="hint-step h1 shown">
+                  <span class="h-label">Try first</span>
+                  <span class="h-text">After the kick, the first ball is gone but the robot is still facing where it was. The second time through, it sees the leftover... nothing, or re-finds the same spot. It needs to <b>move on</b> before searching again.</span>
+                </div>
+                <div class="hint-step h2">
+                  <span class="h-label">Then this</span>
+                  <span class="h-text">Add a turn or a short back-up at the end of the loop, so the next search starts from a different view. Now the spin-to-search finds the <em>other</em> ball.</span>
+                </div>
+                <div class="hint-step h3">
+                  <span class="h-label">Approach</span>
+                  <span class="h-text">Print which time through you are: <code>robot.screen.print(i)</code> at the top of the loop. Watch the robot. If it kicks toward the same corner twice, that's your clue it never turned away.</span>
+                </div>
+                <div class="hint-actions"><button class="btn ghost sm" data-action="next-hint">Still stuck</button></div>
+              </div>
+            </div>
+
+            <div class="hint-card" data-card>
+              <div class="hint-head">
+                <div class="hint-q"><span class="qmark">?</span>IndentationError.</div>
+                <button class="btn ghost sm" data-action="open-card">Open</button>
+              </div>
+              <div class="hint-body">
+                <div class="hint-step h1 shown">
+                  <span class="h-label">Try first</span>
+                  <span class="h-text">Python reads spacing. Everything inside the <code>for</code> loop has to be indented the same amount &mdash; use 4 spaces, not tabs.</span>
+                </div>
+                <div class="hint-step h2">
+                  <span class="h-label">Then this</span>
+                  <span class="h-text">You have a loop <em>inside</em> a loop here: the <code>while</code> search sits inside the <code>for</code>. The <code>while</code> lines need to be indented further still. Count your spaces carefully.</span>
+                </div>
+                <div class="hint-step h3">
+                  <span class="h-label">Approach</span>
+                  <span class="h-text">Line up the start of each line with your eyes. Lines that belong together start at the same column. If one is off by a space, fix it and run again.</span>
+                </div>
+                <div class="hint-actions"><button class="btn ghost sm" data-action="next-hint">Still stuck</button></div>
+              </div>
+            </div>
+
+          </div>
+        </section>
+
+        <section class="failure">
+          <h4>What happened?</h4>
+          <div class="sub">Which version felt better &mdash; copying your code twice, or the loop? Why?</div>
+          <textarea data-failure="bonus" placeholder="The loop was way less typing. The tricky part was getting the robot to turn away after the first kick so it didn't keep hunting the same ball."></textarea>
+          <div class="save-hint">Saves as you type.</div>
+        </section>
+
+        <div class="complete-bar" data-complete="bonus">
+          <div>
+            <h3>Both balls scored from one loop?</h3>
+            <p>Mark complete when the robot scores both sports balls from a single <code>for</code> loop.</p>
+          </div>
+          <button class="btn magenta" data-action="complete" data-level="bonus">Mark Bonus complete</button>
+        </div>
+      </div>
+    </section>
+
+
+  </main>
+</div>
+
+<!-- Reset confirm modal -->
+<div class="modal-bg" id="resetModal" role="dialog" aria-modal="true">
+  <div class="modal">
+    <h3>Reset everything?</h3>
+    <p>This clears your path, your completed levels, your failure notes, and your hint progress. There's no undo. (Use this when a new student is starting on this Chromebook.)</p>
+    <div class="modal-acts">
+      <button class="btn ghost" data-action="cancel-reset">Cancel</button>
+      <button class="btn magenta" data-action="confirm-reset">Reset everything</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+(function() {
+  'use strict';
+
+  // ===================== STATE =====================
+  const STORAGE_KEY = 'tetc_finding_transporting_cargo_companion_v1';
+  const defaultState = {
+    path: null,           // 'beginner' | 'intermediate'
+    screen: 'landing',    // 'landing' | 'level1' | 'level2' | 'level3' | 'bonus'
+    completed: { level1: false, level2: false, level3: false, bonus: false },
+    failure: { level1: '', level2: '', level3: '', bonus: '' },
+    hints: { level1: {}, level2: {}, level3: {}, bonus: {} }
+  };
+
+  function loadState() {
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if (!raw) return clone(defaultState);
+      const parsed = JSON.parse(raw);
+      return Object.assign(clone(defaultState), parsed, {
+        completed: Object.assign({}, defaultState.completed, parsed.completed || {}),
+        failure:   Object.assign({}, defaultState.failure,   parsed.failure   || {}),
+        hints:     Object.assign({}, defaultState.hints,     parsed.hints     || {})
+      });
+    } catch (e) { return clone(defaultState); }
+  }
+  function saveState() {
+    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); }
+    catch (e) { /* quota or private mode — silently continue */ }
+  }
+  function clone(o) { return JSON.parse(JSON.stringify(o)); }
+
+  let state = loadState();
+
+  // ===================== SCREENS / NAV =====================
+  const screens = ['landing','level1','level2','level3','bonus'];
+
+  function gotoScreen(name, anchor) {
+    if (name === 'bonus' && !state.completed.level3) {
+      showToast('Finish Level 3 first to unlock the Bonus.');
+      return;
+    }
+    state.screen = name;
+    saveState();
+    renderScreens();
+    renderProgress();
+    renderCrumbs();
+    renderErrors();
+    if (anchor) {
+      requestAnimationFrame(() => {
+        const target = document.getElementById(anchor);
+        if (target) {
+          if (target.tagName === 'DETAILS') target.open = true;
+          target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+      });
+    } else {
+      window.scrollTo({ top: 0, behavior: 'instant' in window ? 'instant' : 'auto' });
+    }
+  }
+
+  function renderScreens() {
+    screens.forEach(s => {
+      const el = document.getElementById('screen-' + s);
+      if (!el) return;
+      el.hidden = (s !== state.screen);
+    });
+    const bonusLocked  = document.getElementById('bonusLocked');
+    const bonusContent = document.getElementById('bonusContent');
+    if (bonusLocked && bonusContent) {
+      const locked = !state.completed.level3;
+      bonusLocked.hidden  = !locked;
+      bonusContent.hidden = locked;
+    }
+  }
+
+  function renderCrumbs() {
+    const titles = {
+      landing: 'Finding &amp; Transporting Cargo',
+      level1: '<strong>Level 1</strong> &mdash; Blocks',
+      level2: '<strong>Level 2</strong> &mdash; Switch',
+      level3: '<strong>Level 3</strong> &mdash; Python',
+      bonus:  '<strong>Bonus</strong> &mdash; Loops &amp; Variables'
+    };
+    document.getElementById('crumbs').innerHTML = titles[state.screen] || titles.landing;
+  }
+
+  // ===================== PATH PICKER =====================
+  const pathStartScreen = {
+    beginner: 'level1',
+    intermediate: 'level2',
+    advanced: 'level3'
+  };
+  function setPath(path) {
+    state.path = path;
+    state.screen = pathStartScreen[path] || 'level1';
+    saveState();
+    renderAll();
+    window.scrollTo({ top: 0, behavior: 'instant' in window ? 'instant' : 'auto' });
+  }
+  function renderPathChip() {
+    const holder = document.getElementById('pathHolder');
+    if (!state.path) { holder.innerHTML = ''; return; }
+    const labels = {
+      beginner:     { tag: 'beg', text: 'Never coded' },
+      intermediate: { tag: 'int', text: 'Used blocks' },
+      advanced:     { tag: 'exp', text: 'Used text code' }
+    };
+    const meta = labels[state.path];
+    if (!meta) { holder.innerHTML = ''; return; }
+    holder.innerHTML =
+      '<span class="pathchip">' +
+        '<span class="pdot ' + meta.tag + '"></span>' +
+        meta.text +
+        '<button class="linklike" data-action="goto" data-target="landing">change</button>' +
+      '</span>';
+  }
+
+  // ===================== PROGRESS RAIL =====================
+  function renderProgress() {
+    const list = document.getElementById('progressList');
+    const rows = [
+      { key: 'landing', label: 'Start',    sub: 'Overview' },
+      { key: 'level1',  label: 'Level 1',  sub: 'Blocks',            locked: false },
+      { key: 'level2',  label: 'Level 2',  sub: 'Switch',            locked: false },
+      { key: 'level3',  label: 'Level 3',  sub: 'Python',            locked: false },
+      { key: 'bonus',   label: 'Bonus',    sub: 'Loops & variables', locked: !state.completed.level3 }
+    ];
+    list.innerHTML = rows.map(r => {
+      const done = state.completed[r.key];
+      const current = state.screen === r.key;
+      const dotClass = ['dot'];
+      if (done) dotClass.push('done');
+      else if (current) dotClass.push('current');
+      else if (r.locked) dotClass.push('locked');
+      const rowClass = ['progress-row'];
+      if (current) rowClass.push('current');
+      const disabled = r.locked ? 'disabled' : '';
+      return (
+        '<button class="' + rowClass.join(' ') + '" data-action="goto" data-target="' + r.key + '" ' + disabled + '>' +
+          '<span class="' + dotClass.join(' ') + '"></span>' +
+          '<span>' +
+            '<div class="progress-label">' + r.label + '</div>' +
+            '<div class="progress-sub">' + r.sub + '</div>' +
+          '</span>' +
+        '</button>'
+      );
+    }).join('');
+  }
+
+  // ===================== ERRORS (context-sensitive) =====================
+  const errorsByScreen = {
+    level1: [
+      { name: "Camera sees nothing",   fix: "Open the AI Vision setup. Is it detecting the <b>Sports Ball</b>? Is a ball actually in front of the robot? The camera only sees what it faces." },
+      { name: "Kicker isn't firing",   fix: "Make sure the Kick block is in your stack. The ball gets <b>kicked</b>; <b>place</b> is the other mode, for barrels." },
+      { name: "Ball flickers in and out", fix: "The robot is moving too fast for the camera. Lower the move speed and turn in small steps." }
+    ],
+    level2: [
+      { name: "Switch option is grayed out", fix: "Right-click the <em>top</em> block of the stack, not one in the middle. Two-finger tap on a Chromebook." },
+      { name: "Can't find the vision lines", fix: "Look for <code>get_data</code> &mdash; that's the camera taking a look. The name before <code>=</code> is where it stores what it saw." },
+      { name: "Don't know what .exists means", fix: "<code>.exists</code> is a yes/no: is the object in view right now? <code>.bearing</code> is the angle telling the robot which way to turn." }
+    ],
+    level3: [
+      { name: "IndentationError",     fix: "Python reads spacing. Everything inside a <code>while</code> or <code>if</code> must line up exactly. Use 4 spaces, not tabs." },
+      { name: "SyntaxError",          fix: "Usually a missing comma, parenthesis, or a missing colon after <code>while</code>/<code>if</code>/<code>else</code>. The error points to the line." },
+      { name: "NameError",            fix: "A name doesn't exist. Check spelling and capitals: <code>SPORTS_BALL</code>, <code>RIGHT</code>, <code>robot</code> are all case-sensitive." },
+      { name: "Robot spins forever",  fix: "It never sees a ball, so the search loop never ends. Take a fresh <code>get_data</code> look <em>inside</em> the loop, and slow the turn down." }
+    ],
+    bonus: [
+      { name: "Loop runs wrong number of times", fix: "Check <code>range()</code>. <code>range(2)</code> runs twice. For both balls you want 2." },
+      { name: "Scores the same ball twice", fix: "After the kick, turn or back up so the next search starts from a new view and finds the other ball." },
+      { name: "IndentationError",     fix: "The <code>while</code> search sits inside the <code>for</code> loop, so its lines indent further still. Count your spaces carefully." },
+      { name: "Robot spins forever",  fix: "Same as Level 3 &mdash; re-take the camera look inside the search loop, and slow the turn." }
+    ],
+    landing: []
+  };
+  function renderErrors() {
+    const list = document.getElementById('errorsList');
+    if (!list) return;
+    const errors = errorsByScreen[state.screen] || [];
+    if (!errors.length) {
+      list.innerHTML = '<div class="err"><div class="err-fix" style="color: var(--muted); font-style: italic;">Pick a level to see errors that might come up.</div></div>';
+      return;
+    }
+    list.innerHTML = errors.map(e =>
+      '<div class="err">' +
+        '<div class="err-name">' + e.name + '</div>' +
+        '<div class="err-fix">' + e.fix + '</div>' +
+      '</div>'
+    ).join('');
+  }
+
+  // ===================== HINTS =====================
+  function openCard(card) {
+    card.classList.add('opened');
+    const head = card.querySelector('.hint-head .btn');
+    if (head) head.textContent = 'Close';
+    persistHintState(card);
+  }
+  function closeCard(card) {
+    card.classList.remove('opened');
+    const head = card.querySelector('.hint-head .btn');
+    if (head) head.textContent = 'Open';
+  }
+  function revealNext(card) {
+    const steps = card.querySelectorAll('.hint-step');
+    let lastShown = -1;
+    steps.forEach((s, i) => { if (s.classList.contains('shown')) lastShown = i; });
+    if (lastShown < steps.length - 1) {
+      steps[lastShown + 1].classList.add('shown');
+    }
+    // Update "still stuck" button copy & hide when done
+    const btn = card.querySelector('[data-action="next-hint"]');
+    const shownCount = card.querySelectorAll('.hint-step.shown').length;
+    if (btn) {
+      if (shownCount >= steps.length) {
+        btn.style.display = 'none';
+      } else if (shownCount === 2) {
+        btn.textContent = 'Show me the approach';
+      }
+    }
+    persistHintState(card);
+  }
+  function persistHintState(card) {
+    const hints = card.closest('[data-hints]');
+    if (!hints) return;
+    const level = hints.dataset.hints;
+    const cards = Array.from(hints.querySelectorAll('[data-card]'));
+    const idx = cards.indexOf(card);
+    const shownCount = card.querySelectorAll('.hint-step.shown').length;
+    const opened = card.classList.contains('opened');
+    state.hints[level] = state.hints[level] || {};
+    state.hints[level][idx] = { shown: shownCount, opened: opened };
+    saveState();
+  }
+  function restoreHints() {
+    document.querySelectorAll('[data-hints]').forEach(group => {
+      const level = group.dataset.hints;
+      const data = state.hints[level] || {};
+      Array.from(group.querySelectorAll('[data-card]')).forEach((card, idx) => {
+        const saved = data[idx];
+        if (!saved) return;
+        if (saved.opened) {
+          card.classList.add('opened');
+          const head = card.querySelector('.hint-head .btn');
+          if (head) head.textContent = 'Close';
+        }
+        const steps = card.querySelectorAll('.hint-step');
+        for (let i = 1; i < Math.min(saved.shown, steps.length); i++) {
+          steps[i].classList.add('shown');
+        }
+        const shownCount = card.querySelectorAll('.hint-step.shown').length;
+        const btn = card.querySelector('[data-action="next-hint"]');
+        if (btn) {
+          if (shownCount >= steps.length) btn.style.display = 'none';
+          else if (shownCount === 2) btn.textContent = 'Show me the approach';
+        }
+      });
+    });
+  }
+
+  // ===================== BLOCK -> PYTHON DECODER =====================
+  const decoderContent = {
+    lookball: {
+      code:
+        '<span class="cmt"># Take a look for a sports ball</span>\n' +
+        'ball = robot.vision.<span class="fn">get_data</span>(<span class="kw">SPORTS_BALL</span>)',
+      reads: '"Robot, look through your camera and remember any sports balls you see as <code>ball</code>."'
+    },
+    exists: {
+      code:
+        '<span class="cmt"># Is a ball actually in view?</span>\n' +
+        '<span class="kw">if</span> ball[<span class="num">0</span>].exists:\n' +
+        '    robot.<span class="fn">screen</span>.print(<span class="str">"Found it"</span>)',
+      reads: '<code>exists</code> is a yes/no. True means a ball is in view right now; False means the camera sees none.'
+    },
+    bearing: {
+      code:
+        '<span class="cmt"># Which way is the ball?</span>\n' +
+        '<span class="kw">if</span> ball[<span class="num">0</span>].bearing &gt; <span class="num">0</span>:\n' +
+        '    robot.<span class="fn">turn_for</span>(<span class="kw">RIGHT</span>, ball[<span class="num">0</span>].bearing)',
+      reads: '<code>bearing</code> is an angle. A positive number means the ball is to the right; negative means left.'
+    },
+    turnto: {
+      code:
+        '<span class="cmt"># Turn toward the ball</span>\n' +
+        '<span class="kw">if</span> ball[<span class="num">0</span>].bearing &gt; <span class="num">0</span>:\n' +
+        '    robot.<span class="fn">turn_for</span>(<span class="kw">RIGHT</span>, ball[<span class="num">0</span>].bearing)\n' +
+        '<span class="kw">else</span>:\n' +
+        '    robot.<span class="fn">turn_for</span>(<span class="kw">LEFT</span>, -ball[<span class="num">0</span>].bearing)',
+      reads: '"Robot, turn until you\'re facing the ball." Right if it\'s to the right, left if it\'s to the left.'
+    },
+    driveto: {
+      code:
+        '<span class="cmt"># Drive forward toward the ball</span>\n' +
+        'robot.<span class="fn">move_for</span>(<span class="num">300</span>, <span class="num">0</span>)',
+      reads: '"Robot, drive 300 millimeters straight ahead." Drive a little, then look again to close in.'
+    },
+    kick: {
+      code:
+        '<span class="cmt"># Kick the ball through the goal</span>\n' +
+        'robot.<span class="fn">kicker</span>.kick(<span class="kw">HARD</span>)\n' +
+        '<span class="cmt"># also: SOFT, MEDIUM</span>',
+      reads: 'The ball gets kicked. Aim at the goal first, then fire &mdash; HARD launches it the farthest.'
+    }
+  };
+  function showDecode(key) {
+    const item = decoderContent[key];
+    if (!item) return;
+    const codeEl = document.getElementById('decoderCode');
+    const readsEl = document.getElementById('decoderReads');
+    if (codeEl) codeEl.innerHTML = item.code;
+    if (readsEl) readsEl.innerHTML = '<b>Reads as &mdash;</b> ' + item.reads;
+    document.querySelectorAll('[data-decode]').forEach(b => {
+      b.classList.toggle('active', b.dataset.decode === key);
+    });
+  }
+
+  // ===================== FAILURE LOGS =====================
+  function bindFailureLogs() {
+    document.querySelectorAll('[data-failure]').forEach(ta => {
+      const key = ta.dataset.failure;
+      ta.value = state.failure[key] || '';
+      let debounce = null;
+      ta.addEventListener('input', () => {
+        state.failure[key] = ta.value;
+        clearTimeout(debounce);
+        debounce = setTimeout(saveState, 200);
+      });
+    });
+  }
+
+  // ===================== COMPLETION =====================
+  function markComplete(level) {
+    state.completed[level] = true;
+    saveState();
+    const bar = document.querySelector('[data-complete="' + level + '"]');
+    if (bar) {
+      bar.classList.add('done', 'just-completed');
+      bar.innerHTML =
+        '<div>' +
+          '<h3>' + levelDoneTitle(level) + '</h3>' +
+          '<p>' + levelDoneSub(level) + '</p>' +
+        '</div>' +
+        (nextScreenFor(level) ?
+          '<button class="btn" data-action="goto" data-target="' + nextScreenFor(level) + '">' +
+          nextScreenLabel(level) + ' &rarr;</button>'
+          : '<span class="check">Complete</span>');
+    }
+    renderProgress();
+    renderScreens();
+    showToast(levelToastFor(level));
+  }
+  function levelDoneTitle(level) {
+    return ({
+      level1: 'Level 1 complete.',
+      level2: 'Level 2 complete.',
+      level3: 'Level 3 complete.',
+      bonus:  'Bonus complete.'
+    })[level];
+  }
+  function levelDoneSub(level) {
+    return ({
+      level1: 'You taught a robot to find a ball and score it. Onward.',
+      level2: 'You can read the vision code now. Onward.',
+      level3: 'You typed a robot that searches and scores. That\'s the lesson.',
+      bonus:  'One loop, both balls. That\'s why Python exists.'
+    })[level];
+  }
+  function nextScreenFor(level) {
+    return ({ level1: 'level2', level2: 'level3', level3: 'bonus', bonus: null })[level];
+  }
+  function nextScreenLabel(level) {
+    return ({ level1: 'Continue to Level 2', level2: 'Continue to Level 3', level3: 'Open the Bonus' })[level];
+  }
+  function levelToastFor(level) {
+    return ({
+      level1: 'Level 1 complete. Level 2 is unlocked.',
+      level2: 'Level 2 complete. Level 3 is unlocked.',
+      level3: 'Level 3 complete. Bonus is unlocked.',
+      bonus:  'Bonus complete. Nice work.'
+    })[level] || 'Marked complete.';
+  }
+  function restoreCompletions() {
+    Object.keys(state.completed).forEach(level => {
+      if (state.completed[level]) {
+        const bar = document.querySelector('[data-complete="' + level + '"]');
+        if (!bar) return;
+        bar.classList.add('done');
+        bar.innerHTML =
+          '<div>' +
+            '<h3>' + levelDoneTitle(level) + '</h3>' +
+            '<p>' + levelDoneSub(level) + '</p>' +
+          '</div>' +
+          (nextScreenFor(level) ?
+            '<button class="btn" data-action="goto" data-target="' + nextScreenFor(level) + '">' +
+            nextScreenLabel(level) + ' &rarr;</button>'
+            : '<span class="check">Complete</span>');
+      }
+    });
+  }
+
+  // ===================== TOAST =====================
+  let toastTimeout = null;
+  function showToast(msg) {
+    const t = document.getElementById('toast');
+    t.textContent = msg;
+    t.classList.add('show');
+    clearTimeout(toastTimeout);
+    toastTimeout = setTimeout(() => t.classList.remove('show'), 2400);
+  }
+
+  // ===================== RESET =====================
+  function openResetModal() { document.getElementById('resetModal').classList.add('open'); }
+  function closeResetModal() { document.getElementById('resetModal').classList.remove('open'); }
+  function doReset() {
+    try { localStorage.removeItem(STORAGE_KEY); } catch (e) {}
+    state = clone(defaultState);
+    closeResetModal();
+    document.querySelectorAll('[data-failure]').forEach(t => t.value = '');
+    document.querySelectorAll('[data-card]').forEach(card => {
+      card.classList.remove('opened');
+      const head = card.querySelector('.hint-head .btn');
+      if (head) head.textContent = 'Open';
+      const steps = card.querySelectorAll('.hint-step');
+      steps.forEach((s, i) => s.classList.toggle('shown', i === 0));
+      const btn = card.querySelector('[data-action="next-hint"]');
+      if (btn) { btn.style.display = ''; btn.textContent = 'Still stuck'; }
+    });
+    renderAll();
+    showToast('Progress reset. Welcome back.');
+  }
+
+  // ===================== EVENT WIRING =====================
+  document.addEventListener('click', (e) => {
+    const t = e.target;
+    const actionEl = t.closest('[data-action]');
+    if (actionEl) {
+      const action = actionEl.dataset.action;
+      switch (action) {
+        case 'goto':
+          gotoScreen(actionEl.dataset.target, actionEl.dataset.anchor);
+          document.querySelector('.app').classList.remove('menu-open');
+          return;
+        case 'toggle-menu':
+          document.querySelector('.app').classList.toggle('menu-open');
+          return;
+        case 'close-menu':
+          document.querySelector('.app').classList.remove('menu-open');
+          return;
+        case 'open-card': {
+          const card = actionEl.closest('[data-card]');
+          if (card) {
+            if (card.classList.contains('opened')) closeCard(card);
+            else openCard(card);
+          }
+          return;
+        }
+        case 'next-hint': {
+          const card = actionEl.closest('[data-card]');
+          if (card) revealNext(card);
+          return;
+        }
+        case 'complete':
+          markComplete(actionEl.dataset.level);
+          return;
+        case 'cancel-reset':
+          closeResetModal();
+          return;
+        case 'confirm-reset':
+          doReset();
+          return;
+      }
+    }
+    const pathBtn = t.closest('[data-path]');
+    if (pathBtn) { setPath(pathBtn.dataset.path); return; }
+    const toggle = t.closest('[data-toggle]');
+    if (toggle) {
+      const section = document.getElementById(toggle.dataset.toggle);
+      if (section) section.classList.toggle('open');
+      return;
+    }
+    const dec = t.closest('[data-decode]');
+    if (dec) { showDecode(dec.dataset.decode); return; }
+    if (t.closest('#resetBtn')) { openResetModal(); return; }
+    if (t.id === 'resetModal') { closeResetModal(); return; }
+  });
+
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') closeResetModal();
+  });
+
+  // ===================== RENDER ALL =====================
+  function renderAll() {
+    renderScreens();
+    renderProgress();
+    renderPathChip();
+    renderCrumbs();
+    renderErrors();
+  }
+
+  // ===================== INIT =====================
+  function init() {
+    if (!state.path) state.screen = 'landing';
+    bindFailureLogs();
+    restoreHints();
+    restoreCompletions();
+    renderAll();
+    showDecode('lookball');
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', init);
+  } else {
+    init();
+  }
+})();
+</script>
+</body>
+</html>
